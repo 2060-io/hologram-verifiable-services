@@ -20,11 +20,11 @@ export async function discoverSchema(
 ): Promise<SchemaInfo> {
   const vtjscList = await client.getJsonSchemaCredentials();
 
-  // Find the custom VTJSC — the one whose id contains the custom schema base ID
+  // Find the custom VTJSC — credential ID ends with schemas-{baseId}-jsc.json
+  // (not the ECS org/service VTJSCs which end in -service-jsc.json / -org-jsc.json)
+  const suffix = `schemas-${customSchemaBaseId}-jsc.json`;
   const customVtjsc = vtjscList.data.find(
-    (v: VtjscEntry) =>
-      v.credential.id.includes(`/${customSchemaBaseId}/`) ||
-      v.credential.id.endsWith(`/${customSchemaBaseId}`)
+    (v: VtjscEntry) => v.credential.id.endsWith(suffix)
   );
 
   if (!customVtjsc) {
