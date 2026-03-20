@@ -38,6 +38,10 @@ scripts/vs-demo/
 ├── 02-get-ecs-credentials.sh       # Obtain ECS credentials (existing)
 └── 03-create-trust-registry.sh     # Create Trust Registry (existing)
 
+scripts/verifier/
+├── 01-deploy-verifier-vs.sh        # Deploy a Verifier VS-Agent (Docker + ngrok)
+└── 02-setup-verifier.sh            # (Optional) ECS credentials + TR for verifier agent
+
 issuer-chatbot/
 ├── src/                            # Application source (TypeScript)
 │   ├── index.ts                    # Entry point
@@ -81,6 +85,15 @@ verifier-chatbot/
 ├── tsconfig.json
 └── README.md
 
+scripts/issuer-chatbot/
+└── start.sh                        # Start issuer chatbot locally
+
+scripts/web-verifier/
+└── start.sh                        # Deploy verifier VS-Agent + start web verifier locally
+
+scripts/verifier-chatbot/
+└── start.sh                        # Deploy verifier VS-Agent + start verifier chatbot locally
+
 .github/workflows/
 ├── deploy-vs-demo.yml              # Issuer VS-Agent workflow (existing)
 ├── deploy-issuer-chatbot.yml       # Issuer Chatbot workflow (new)
@@ -92,6 +105,40 @@ verifier-chatbot/
 
 ## 3. Service 1 — Issuer Service VS-Agent (Existing)
 
+### Role: Organization Agent (Pattern 2)
+
+The Issuer VS-Agent acts as the **Organization agent** in [Pattern 2: Separate Organization + Child Services](https://docs.verana.io/docs/next/use/verifiable-service-builders/overview#pattern-2-separate-organization--child-services-production). It:
+
+1. Holds the **Organization credential** (from ECS Trust Registry)
+2. Holds the **ISSUER permission** for the ECS Service schema
+3. Self-issues its own **Service credential** (linked as VP in its DID Document)
+4. **Issues Service credentials to child VS-Agents** (verifier services) via DIDComm, so they can present them as linked-vp in their own DID Documents
+
+```text
+┌─────────────────────────────────┐
+│  Issuer VS-Agent (Organization) │
+│  did:webvh:...issuer            │
+│                                 │
+│  • Organization credential (VP) │
+│  • Service credential (VP)      │
+│  • ISSUER perm for Service      │
+│    schema                       │
+│  • Issues Service credentials   │
+│    to child VS-Agents           │
+└──────────┬──────────────────────┘
+           │ issues Service credential
+     ┌─────┴─────┐
+     ▼           ▼
+┌──────────┐ ┌──────────┐
+│ Verifier │ │ Verifier │
+│ VS #1    │ │ VS #2    │
+│ (own DID)│ │ (own DID)│
+│          │ │          │
+│ Service  │ │ Service  │
+│ cred (VP)│ │ cred (VP)│
+└──────────┘ └──────────┘
+```
+
 ### What Exists
 
 - **Local deployment**: Docker + ngrok (`01-deploy-vs.sh`)
@@ -100,9 +147,10 @@ verifier-chatbot/
 - **CI/CD**: `deploy-vs-demo.yml` — workflow_dispatch with steps: `deploy`, `get-ecs-credentials`, `create-trust-registry`, `all`
 - **Shared helpers**: `common.sh` — logging, tx helpers, API helpers, ECS discovery, credential issuance/linking, permission helpers, duplicate detection
 
-### Required Change
+### Required Changes
 
 - **`ENABLE_ANONCREDS` must default to `"true"`** in `vs/config.env` so that the Issuer Chatbot can issue AnonCreds credentials out of the box.
+- **The Issuer VS-Agent must be reachable by child VS-Agents** via DIDComm so they can request a Service credential. The `issue_remote_and_link` helper in `common.sh` already supports this flow.
 
 ---
 
@@ -291,9 +339,17 @@ A mini configurable website that displays a QR code containing an OOB (Out-of-Ba
 | `SERVICE_NAME` | `vs/config.env` | Displayed on the web page header |
 | `CUSTOM_SCHEMA_BASE_ID` | `vs/config.env` | Schema to request in the presentation |
 
-### Embedded VS-Agent
+### Embedded VS-Agent (Child Service)
 
-The Web Verifier Service **embeds its own VS-Agent** (separate from the Issuer VS-Agent). This is deployed as a sidecar container in K8s or a second Docker container locally. The web verifier backend communicates with its own VS-Agent via the admin API.
+The Web Verifier Service **embeds its own VS-Agent** (separate from the Issuer VS-Agent). This agent is a **child service** in Pattern 2:
+
+1. Deployed with its own DID (Docker container locally, sidecar in K8s)
+2. Connects to the **Issuer VS-Agent** (Organization) via DIDComm
+3. Receives a **Service credential** issued by the Issuer VS-Agent
+4. Presents the Service credential as a **linked-vp** in its DID Document
+5. Does **not** need its own Organization credential, Trust Registry, or on-chain permissions
+
+The web verifier backend communicates with its own VS-Agent via the admin API.
 
 ### User Experience Flow
 
@@ -347,6 +403,8 @@ A conversational chatbot (via Hologram Messaging) that requests the presentation
 ### Architecture
 
 Same pattern as the Issuer Chatbot but focused on verification instead of issuance. The Chatbot Verifier **embeds its own VS-Agent** (separate from the Issuer).
+
+Like the Web Verifier, this VS-Agent is a **child service** in Pattern 2 — it receives a Service credential from the Issuer VS-Agent and presents it as a **linked-vp** in its DID Document. It does **not** need its own Organization credential, Trust Registry, or on-chain permissions.
 
 ```text
 ┌─────────────────┐     webhook events      ┌────────────────────────┐
@@ -457,6 +515,23 @@ Same approach as the Issuer Chatbot:
 
 ## 7. Shared Infrastructure
 
+### Credential Chain — Pattern 2
+
+All VS-Agents in this demo follow [Pattern 2](https://docs.verana.io/docs/next/use/verifiable-service-builders/overview#pattern-2-separate-organization--child-services-production):
+
+| Agent | Role | Credentials | Linked-VP |
+|-------|------|-------------|-----------|
+| **Issuer VS-Agent** | Organization | Org credential (from ECS), self-issued Service credential | Org VP + Service VP |
+| **Verifier VS-Agent(s)** | Child service | Service credential (issued by Issuer VS-Agent) | Service VP |
+
+**Child Service Credential Flow:**
+
+1. Child VS-Agent deploys and obtains its own DID.
+2. A setup script calls the **Issuer VS-Agent admin API** (`POST /v1/vt/issue-credential` with the child's DID) to issue a Service credential to the child agent via DIDComm (`issue_remote_and_link` helper).
+3. The child VS-Agent receives the Service credential.
+4. The setup script calls the **child VS-Agent admin API** to link the received credential as a **VP in its DID Document** (`POST /v1/vt/linked-credentials`).
+5. Anyone resolving the child's DID can now verify it is a legitimate service of the Organization.
+
 ### VS-Agent Webhook Configuration
 
 All chatbot services require the VS-Agent to forward events to their webhook endpoints. This is configured via the VS-Agent's `EVENTS_BASE_URL` environment variable, which must point to the chatbot's HTTP server.
@@ -521,33 +596,91 @@ All services must be runnable locally with minimal setup.
 
 ### Local Startup Sequence
 
+#### A. Issuer VS-Agent (existing scripts)
+
 ```bash
-# 1. Deploy Issuer VS-Agent (existing)
 source vs/config.env
-NETWORK=testnet ./scripts/vs-demo/01-deploy-vs.sh
+NETWORK=testnet ./scripts/vs-demo/01-deploy-vs.sh   # Docker + ngrok
 source vs-demo-ids.env
-
-# 2. Get ECS credentials (existing)
 ./scripts/vs-demo/02-get-ecs-credentials.sh
-
-# 3. Create Trust Registry with AnonCreds (existing)
-./scripts/vs-demo/03-create-trust-registry.sh
-
-# 4. Start Issuer Chatbot (connects to the issuer VS-Agent)
-cd issuer-chatbot
-npm install
-VS_AGENT_ADMIN_URL=http://localhost:3000 npm start
-
-# 5. Start Web Verifier (launches its own VS-Agent + web server)
-cd web-verifier
-npm install
-npm start   # starts embedded VS-Agent (Docker) + Express server
-
-# 6. Start Chatbot Verifier (launches its own VS-Agent + chatbot)
-cd verifier-chatbot
-npm install
-npm start   # starts embedded VS-Agent (Docker) + chatbot server
+./scripts/vs-demo/03-create-trust-registry.sh        # ENABLE_ANONCREDS=true
 ```
+
+Result: Issuer VS-Agent running on `localhost:3000` (admin) / `localhost:3001` (public).
+
+#### B. Issuer Chatbot
+
+```bash
+# Prerequisite: Issuer VS-Agent running (step A)
+./scripts/issuer-chatbot/start.sh
+# Internally:
+#   1. npm install (if needed)
+#   2. Configures VS-Agent EVENTS_BASE_URL to point to chatbot
+#   3. Starts chatbot on CHATBOT_PORT (default 4000)
+```
+
+Result: Chatbot webhook server on `localhost:4000`, connected to the Issuer VS-Agent.
+
+#### C. Verifier VS-Agent (new script — Pattern 2 child service)
+
+```bash
+# Prerequisite: Issuer VS-Agent running and configured (step A)
+
+# Deploy a second VS-Agent for verifier services
+./scripts/verifier/01-deploy-verifier-vs.sh
+# Internally:
+#   1. Starts a second VS-Agent Docker container on ports 3002 (admin) / 3003 (public)
+#   2. Opens a second ngrok tunnel for the verifier agent's public DID
+#   3. Outputs verifier-ids.env with VERIFIER_DID, VERIFIER_ADMIN_URL, etc.
+source verifier-ids.env
+
+# Obtain Service credential from Issuer VS-Agent and link as VP
+./scripts/verifier/02-setup-verifier.sh
+# Internally:
+#   1. Calls Issuer VS-Agent admin API to issue a Service credential
+#      to the verifier agent's DID (issue_remote_and_link)
+#   2. Verifier agent receives credential via DIDComm
+#   3. Links the Service credential as a VP in the verifier's DID Document
+#   4. Verifier is now a recognized child service of the Organization
+```
+
+Result: Verifier VS-Agent running on `localhost:3002` (admin) / `localhost:3003` (public), with a Service credential linked-vp in its DID Document.
+
+#### D. Web Verifier
+
+```bash
+# Prerequisite: Verifier VS-Agent running (step C)
+./scripts/web-verifier/start.sh
+# Internally:
+#   1. npm install (if needed)
+#   2. Configures verifier VS-Agent EVENTS_BASE_URL → http://localhost:4001/webhooks
+#   3. Starts Express server on VERIFIER_PORT (default 4001)
+```
+
+Result: Web verifier at `http://localhost:4001` — open in browser to see QR code.
+
+#### E. Chatbot Verifier
+
+```bash
+# Prerequisite: Verifier VS-Agent running (step C)
+./scripts/verifier-chatbot/start.sh
+# Internally:
+#   1. npm install (if needed)
+#   2. Configures verifier VS-Agent EVENTS_BASE_URL → http://localhost:4002
+#   3. Starts chatbot on CHATBOT_PORT (default 4002)
+```
+
+Result: Verifier chatbot webhook server on `localhost:4002`, connected to the Verifier VS-Agent.
+
+#### Summary of Local Ports
+
+| Service | Admin Port | Public Port | App Port |
+|---------|-----------|-------------|----------|
+| Issuer VS-Agent | 3000 | 3001 | — |
+| Issuer Chatbot | — | — | 4000 |
+| Verifier VS-Agent | 3002 | 3003 | — |
+| Web Verifier | — | — | 4001 |
+| Chatbot Verifier | — | — | 4002 |
 
 ### Local Docker Compose (optional convenience)
 
@@ -713,10 +846,8 @@ No changes required (already complete).
 
 ## 12. Open Questions
 
-1. **Verifier VS-Agent setup**: The Web Verifier and Chatbot Verifier embed their own VS-Agents. Do these verifier agents also need ECS credentials and on-chain trust registry setup, or do they only need to resolve the issuer's trust registry to verify credentials? (The verifier likely only needs to resolve, not own a TR.)
+1. **Credential delivery in Issuer Chatbot**: Should the chatbot issue the credential directly via `issue-credential` API (which stores it on the agent side), then deliver it to the user via DIDComm credential offer? Or should it use a different flow? The existing VS-Agent `issue-credential` endpoint issues a self-signed credential — for issuing to a remote holder, the DIDComm credential issuance protocol would be used.
 
-2. **Credential delivery in Issuer Chatbot**: Should the chatbot issue the credential directly via `issue-credential` API (which stores it on the agent side), then deliver it to the user via DIDComm credential offer? Or should it use a different flow? The existing VS-Agent `issue-credential` endpoint issues a self-signed credential — for issuing to a remote holder, the DIDComm credential issuance protocol would be used.
+2. **AnonCreds vs W3C JSON-LD for chatbot issuance**: The brief mentions AnonCreds must be enabled. Should the chatbot issue exclusively AnonCreds credentials, or dual W3C + AnonCreds? The Hologram Messaging app likely expects AnonCreds format for storage and presentation.
 
-3. **AnonCreds vs W3C JSON-LD for chatbot issuance**: The brief mentions AnonCreds must be enabled. Should the chatbot issue exclusively AnonCreds credentials, or dual W3C + AnonCreds? The Hologram Messaging app likely expects AnonCreds format for storage and presentation.
-
-4. **Shared VS-Agent for verifiers**: Should the Web Verifier and Chatbot Verifier share a single VS-Agent instance, or each have their own? Sharing reduces resource usage; separate agents provide isolation.
+3. **Shared VS-Agent for verifiers**: Should the Web Verifier and Chatbot Verifier share a single VS-Agent instance, or each have their own? Sharing reduces resource usage; separate agents provide isolation.
