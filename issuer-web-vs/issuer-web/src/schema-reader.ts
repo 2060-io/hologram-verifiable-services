@@ -51,7 +51,6 @@ export async function discoverSchema(
 ): Promise<SchemaInfo> {
   let vtjscId: string;
   let schemaUrl: string;
-  let credentialDefinitionId: string;
 
   if (orgPublicUrl) {
     // Discover from public DID document (works through the public ingress)
@@ -114,37 +113,6 @@ export async function discoverSchema(
       throw new Error(`VTJSC ${vtjscId} has no credentialSubject.jsonSchema`);
     }
     schemaUrl = ref;
-
-    // Discover the AnonCreds credential definition from the org-vs public resources
-    const credDefUrl = `${orgPublicUrl}/resources?resourceType=anonCredsCredDef`;
-    console.log(`Fetching AnonCreds cred defs from ${credDefUrl}`);
-    const credDefRes = await fetch(credDefUrl);
-    if (!credDefRes.ok) {
-      throw new Error(
-        `Failed to fetch cred defs from ${credDefUrl}: ${credDefRes.status}`
-      );
-    }
-    const credDefs = (await credDefRes.json()) as {
-      id: string;
-      metadata?: {
-        relatedJsonSchemaCredentialId?: string;
-        resourceName?: string;
-      };
-    }[];
-    const matchingCredDef = credDefs.find(
-      (r) => r.metadata?.relatedJsonSchemaCredentialId === vtjscId
-    );
-    if (!matchingCredDef) {
-      const available = credDefs.map(
-        (r) => `${r.id} (${r.metadata?.relatedJsonSchemaCredentialId})`
-      );
-      throw new Error(
-        `AnonCreds cred def not found for VTJSC "${vtjscId}". ` +
-          `Available: ${JSON.stringify(available)}`
-      );
-    }
-    credentialDefinitionId = matchingCredDef.id;
-    console.log(`Discovered credentialDefinitionId: ${credentialDefinitionId}`);
   } else {
     // Fallback: use org admin API (fully local setup)
     const schemaSource = orgClient || client;
@@ -172,9 +140,6 @@ export async function discoverSchema(
       throw new Error(`VTJSC ${vtjscId} has no credentialSubject.jsonSchema`);
     }
     schemaUrl = ref;
-
-    // Fallback: use the VTJSC ID as a placeholder
-    credentialDefinitionId = vtjscId;
   }
 
   // Resolve and fetch the JSON schema
@@ -231,6 +196,9 @@ export async function discoverSchema(
       attributes.map((a) => a.name).join(", ")
   );
 
+  // Ensure a local AnonCreds credential type exists on the issuer agent
+  const credentialDefinitionId = await ensureCredentialType(client, vtjscId);
+
   return {
     vtjscId,
     schemaId: vtjscId.replace(/-jsc\.json$/, ""),
@@ -238,4 +206,34 @@ export async function discoverSchema(
     attributes,
     credentialDefinitionId,
   };
+}
+
+async function ensureCredentialType(
+  client: VsAgentClient,
+  vtjscId: string
+): Promise<string> {
+  // Check if a credential type already exists for this VTJSC
+  const existingTypes = await client.getCredentialTypes();
+  const existing = existingTypes.find(
+    (ct) => ct.relatedJsonSchemaCredentialId === vtjscId
+  );
+  if (existing) {
+    console.log(
+      `Using existing credential type: ${existing.credentialDefinitionId}`
+    );
+    return existing.credentialDefinitionId;
+  }
+
+  // Create a new credential type
+  console.log(`Creating anoncreds credential type for VTJSC ${vtjscId}...`);
+  const created = await client.createCredentialType({
+    name: vtjscId.replace(/[^a-zA-Z0-9-]/g, "-"),
+    version: "1.0",
+    relatedJsonSchemaCredentialId: vtjscId,
+    supportRevocation: false,
+  });
+  console.log(
+    `Created credential type: ${created.credentialDefinitionId}`
+  );
+  return created.credentialDefinitionId;
 }
