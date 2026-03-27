@@ -42,7 +42,7 @@ VS_AGENT_PUBLIC_PORT="${VS_AGENT_PUBLIC_PORT:-3003}"
 VS_AGENT_DATA_DIR="${VS_AGENT_DATA_DIR:-${SERVICE_DIR}/data}"
 CHATBOT_PORT="${CHATBOT_PORT:-4000}"
 SERVICE_NAME="${SERVICE_NAME:-Example Issuer Chatbot}"
-USER_ACC="${USER_ACC:-issuer-chatbot-vs-admin}"
+USER_ACC="${USER_ACC:-org-vs-admin}"
 OUTPUT_FILE="${OUTPUT_FILE:-${SERVICE_DIR}/ids.env}"
 
 # Organization VS
