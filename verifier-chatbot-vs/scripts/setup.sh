@@ -42,7 +42,7 @@ VS_AGENT_PUBLIC_PORT="${VS_AGENT_PUBLIC_PORT:-3007}"
 VS_AGENT_DATA_DIR="${VS_AGENT_DATA_DIR:-${SERVICE_DIR}/data}"
 CHATBOT_PORT="${CHATBOT_PORT:-4002}"
 SERVICE_NAME="${SERVICE_NAME:-Example Verifier Chatbot}"
-USER_ACC="${USER_ACC:-verifier-chatbot-vs-admin}"
+USER_ACC="${USER_ACC:-org-vs-admin}"
 OUTPUT_FILE="${OUTPUT_FILE:-${SERVICE_DIR}/ids.env}"
 
 # Organization VS
