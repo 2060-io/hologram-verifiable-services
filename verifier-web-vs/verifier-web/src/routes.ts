@@ -5,12 +5,21 @@ import { SchemaInfo } from "./schema-reader";
 import { SessionStore } from "./session-store";
 import { Config } from "./config";
 
-interface ProofReceivedEvent {
-  invitationId?: string;
+interface WebhookEvent {
+  timestamp?: string;
+  message?: ProofMessage;
+  [key: string]: unknown;
+}
+
+interface ProofMessage {
+  type?: string;
   connectionId?: string;
-  claims?: Record<string, string>;
+  id?: string;
+  threadId?: string;
+  claims?: Record<string, unknown>;
   submittedProofItems?: Array<{
-    claims?: Record<string, string>;
+    proofExchangeId?: string;
+    claims?: Record<string, unknown> | Array<{ name: string; value: string }>;
     [key: string]: unknown;
   }>;
   [key: string]: unknown;
@@ -83,12 +92,18 @@ export function createRoutes(
     "/webhooks/message-received",
     (req: Request, res: Response) => {
       try {
-        const event = req.body as ProofReceivedEvent;
+        const event = req.body as WebhookEvent;
         console.log("Webhook: message-received", JSON.stringify(event).slice(0, 500));
 
-        // Try to correlate by proofExchangeId from the message
-        const msg = (event as any).message || event;
-        const proofExId = msg.id || msg.proofExchangeId || msg.threadId || "";
+        // VS-Agent wraps payload as { timestamp, message: { ... } }
+        const msg = event.message || (event as unknown as ProofMessage);
+
+        // proofExchangeId is inside submittedProofItems[0]
+        const proofExId =
+          msg.submittedProofItems?.[0]?.proofExchangeId ||
+          msg.id ||
+          msg.threadId ||
+          "";
         const session = store.getSessionByProofExchangeId(proofExId);
 
         if (!session) {
@@ -99,7 +114,7 @@ export function createRoutes(
           return;
         }
 
-        const claims = extractClaims(event);
+        const claims = extractClaims(msg);
         store.markVerified(session.sessionId, claims);
         console.log(
           `Session ${session.sessionId} verified with claims:`,
@@ -125,30 +140,37 @@ export function createRoutes(
   return router;
 }
 
-function extractClaims(event: ProofReceivedEvent): Record<string, string> {
-  const raw: Record<string, unknown> = {};
+function extractClaims(msg: ProofMessage): Record<string, string> {
+  const result: Record<string, string> = {};
 
-  if (event.submittedProofItems && event.submittedProofItems.length > 0) {
-    for (const item of event.submittedProofItems) {
-      if (item.claims) {
-        Object.assign(raw, item.claims);
+  if (msg.submittedProofItems && msg.submittedProofItems.length > 0) {
+    for (const item of msg.submittedProofItems) {
+      if (!item.claims) continue;
+      // claims can be an array of {name, value} or a record
+      if (Array.isArray(item.claims)) {
+        for (const c of item.claims) {
+          result[c.name] = String(c.value);
+        }
+      } else {
+        for (const [key, val] of Object.entries(item.claims)) {
+          if (val && typeof val === "object" && "value" in val) {
+            result[key] = String((val as { value: unknown }).value);
+          } else {
+            result[key] = String(val);
+          }
+        }
       }
     }
-  } else if (event.claims) {
-    Object.assign(raw, event.claims);
-  } else {
-    return {};
-  }
-
-  // Unwrap object values (e.g. {value: "John"} → "John")
-  const result: Record<string, string> = {};
-  for (const [key, val] of Object.entries(raw)) {
-    if (val && typeof val === "object" && "value" in val) {
-      result[key] = String((val as { value: unknown }).value);
-    } else {
-      result[key] = String(val);
+  } else if (msg.claims) {
+    for (const [key, val] of Object.entries(msg.claims)) {
+      if (val && typeof val === "object" && "value" in val) {
+        result[key] = String((val as { value: unknown }).value);
+      } else {
+        result[key] = String(val);
+      }
     }
   }
+
   return result;
 }
 
