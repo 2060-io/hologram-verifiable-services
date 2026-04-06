@@ -1,30 +1,27 @@
 {
   "$id": "https://verana-labs.github.io/verifiable-trust-spec/schemas/v4/example.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Example Credential",
-  "description": "An example credential schema for demonstrating Verana Trust Registry capabilities.",
+  "title": "Avatar Credential",
+  "description": "An avatar credential schema for decentralized service indentification.",
   "type": "object",
   "properties": {
     "credentialSubject": {
       "type": "object",
       "properties": {
-        "firstName": {
-          "type": "string",
-          "description": "The first name of the subject"
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
         },
-        "lastName": {
-          "type": "string",
-          "description": "The last name of the subject"
-        },
-        "countryOfResidence": {
-          "type": "string",
-          "description": "The country of residence (ISO 3166-1 alpha-2)"
+        "avatar": {
+          "format": "uri",
+          "maxLength": 1400000,
+          "pattern": "^data:image/(png|jpeg|svg\\+xml);base64,",
+          "type": "string"
         }
       },
       "required": [
-        "firstName",
-        "lastName",
-        "countryOfResidence"
+        "name"
       ]
     }
   }

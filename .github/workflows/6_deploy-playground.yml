@@ -11,26 +11,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate branch and extract network
+      - name: Validate branch
         run: |
-          BRANCH="${GITHUB_REF_NAME}"
-          if [ "$BRANCH" = "vs/testnet-main" ]; then
-            echo "::error::Branch vs/testnet-main is reserved. Deploy from 'main' branch instead."
-            exit 1
-          elif [ "$BRANCH" = "main" ]; then
-            NETWORK="testnet"
-            VS_NAME="main"
-          elif [[ "$BRANCH" =~ ^vs/(testnet|devnet)- ]]; then
-            SUFFIX="${BRANCH#vs/}"
-            NETWORK="${SUFFIX%%-*}"
-            VS_NAME="${SUFFIX#*-}"
-          else
-            echo "::error::Branch must be 'main' or match vs/testnet-<name> or vs/devnet-<name> (current: $BRANCH)"
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "::error::This workflow can only run on the main branch (current: ${GITHUB_REF_NAME})"
             exit 1
           fi
-          echo "NETWORK=${NETWORK}" >> "$GITHUB_ENV"
-          echo "VS_NAME=${VS_NAME}" >> "$GITHUB_ENV"
-          echo "Branch: $BRANCH — Network: $NETWORK — Service: $VS_NAME"
+          echo "NETWORK=testnet" >> "$GITHUB_ENV"
 
       - name: Set up kubeconfig
         run: |
@@ -63,9 +50,9 @@ jobs:
           push: true
           tags: |
             veranalabs/playground:${{ github.sha }}
-            veranalabs/playground:${{ env.VS_NAME }}
+            veranalabs/playground:latest
           build-args: |
-            NEXT_PUBLIC_ISSUER_WEB_URL=https://app.issuer-web-vs.${{ env.VS_NAME }}.demos.${{ env.NETWORK }}.verana.network
+            NEXT_PUBLIC_ISSUER_WEB_URL=https://app.issuer-web-vs.avatar.hologram.zone
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -75,9 +62,9 @@ jobs:
       - name: Deploy Playground
         run: |
           NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
-          APP_NAME="playground-${VS_NAME}"
+          APP_NAME="playground"
           IMAGE="veranalabs/playground:${{ github.sha }}"
-          HOST="playground.${VS_NAME}.demos.${NETWORK}.verana.network"
+          HOST="avatar.hologram.zone"
           PORT=3000
 
           cat <<EOF | kubectl apply -f -
@@ -108,11 +95,11 @@ jobs:
                       - containerPort: ${PORT}
                     env:
                       - name: ISSUER_CHATBOT_VS_ADMIN_URL
-                        value: "http://issuer-chatbot-${VS_NAME}:3000"
+                        value: "http://issuer-chatbot-vs:3000"
                       - name: VERIFIER_CHATBOT_VS_ADMIN_URL
-                        value: "http://verifier-chatbot-${VS_NAME}:3000"
+                        value: "http://verifier-chatbot-vs:3000"
                       - name: VERIFIER_WEB_URL
-                        value: "http://verifier-web-app-${VS_NAME}:4003"
+                        value: "http://verifier-web-app:4003"
           ---
           apiVersion: v1
           kind: Service
@@ -163,7 +150,6 @@ jobs:
         run: |
           echo "## Playground" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Network:** ${NETWORK:-unknown}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Service:** ${VS_NAME:-unknown}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **URL:** https://playground.${VS_NAME}.demos.${NETWORK}.verana.network" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **URL:** https://avatar.hologram.zone" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Image:** veranalabs/playground:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"

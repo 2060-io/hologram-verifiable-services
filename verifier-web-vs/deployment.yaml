@@ -1,19 +1,18 @@
 # Verifier Web VS Agent deployment — Helm chart values
 #
-# Network and service name are derived from the branch name.
-# The workflow substitutes __NETWORK__, __VS_NAME__ and __CHILD_VS_NAME__ placeholders at deploy time.
+# Hardcoded for hologram-avatar testnet deployment on avatar.hologram.zone
 chartSource: oci://registry-1.docker.io/veranalabs/vs-agent-chart
 chartVersion: v1.9.1
 
 global:
-  domain: __VS_NAME__.demos.__NETWORK__.verana.network
+  domain: avatar.hologram.zone
 
-name: __CHILD_VS_NAME__
+name: verifier-web-vs
 replicas: 1
 
 adminPort: 3000
 didcommPort: 3001
-eventsBaseUrl: "https://verifier-web-vs.__VS_NAME__.demos.__NETWORK__.verana.network"
+eventsBaseUrl: "https://verifier-web-vs.avatar.hologram.zone"
 publicDidMethod: "webvh"
 
 resources:
@@ -25,8 +24,8 @@ resources:
     memory: 512Mi
 
 ingress:
-  host: "verifier-web-vs.__VS_NAME__.demos.__NETWORK__.verana.network"
-  tlsSecret: "verifier-web-vs.__VS_NAME__.demos.__NETWORK__.verana.network-cert"
+  host: "verifier-web-vs.avatar.hologram.zone"
+  tlsSecret: "verifier-web-vs.avatar.hologram.zone-cert"
   public:
     enableCors: true
   private:
