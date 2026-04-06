@@ -30,6 +30,18 @@ services:
     volumes:
       - vs-agent-data:/root/.afj
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio-data:/data
+
   issuer-chatbot:
     build: ../issuer-chatbot
     ports:
@@ -44,11 +56,20 @@ services:
       - CUSTOM_SCHEMA_BASE_ID=${CUSTOM_SCHEMA_BASE_ID:-example}
       - ENABLE_ANONCREDS=${ENABLE_ANONCREDS:-false}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-avatar-previews}
+      - MINIO_USE_SSL=false
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
     volumes:
       - chatbot-data:/app/data
     depends_on:
       - vs-agent
+      - minio
 
 volumes:
   vs-agent-data:
   chatbot-data:
+  minio-data:

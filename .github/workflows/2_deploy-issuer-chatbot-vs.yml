@@ -262,6 +262,20 @@ jobs:
 
           DB_NAME="issuer-chatbot-db"
           DB_PASSWORD="${{ secrets.CHATBOT_DB_PASSWORD }}"
+
+          MINIO_NAME="issuer-chatbot-minio"
+          MINIO_ACCESS_KEY="${{ secrets.MINIO_ACCESS_KEY }}"
+          MINIO_SECRET_KEY="${{ secrets.MINIO_SECRET_KEY }}"
+          MINIO_BUCKET="avatar-previews"
+          MINIO_PUBLIC_HOST="media.issuer-chatbot-vs.avatar.hologram.zone"
+          if [ -z "$MINIO_ACCESS_KEY" ]; then
+            MINIO_ACCESS_KEY="$(openssl rand -hex 12)"
+            echo "::warning::MINIO_ACCESS_KEY secret not set — using generated key"
+          fi
+          if [ -z "$MINIO_SECRET_KEY" ]; then
+            MINIO_SECRET_KEY="$(openssl rand -hex 16)"
+            echo "::warning::MINIO_SECRET_KEY secret not set — using generated key"
+          fi
           if [ -z "$DB_PASSWORD" ]; then
             DB_PASSWORD="$(openssl rand -hex 16)"
             echo "::warning::CHATBOT_DB_PASSWORD secret not set — using generated password"
@@ -344,6 +358,93 @@ jobs:
           apiVersion: apps/v1
           kind: Deployment
           metadata:
+            name: ${MINIO_NAME}
+            namespace: ${NAMESPACE}
+            labels:
+              app: ${MINIO_NAME}
+          spec:
+            replicas: 1
+            strategy:
+              type: Recreate
+            selector:
+              matchLabels:
+                app: ${MINIO_NAME}
+            template:
+              metadata:
+                labels:
+                  app: ${MINIO_NAME}
+              spec:
+                containers:
+                  - name: minio
+                    image: minio/minio:latest
+                    args: ["server", "/data", "--console-address", ":9001"]
+                    ports:
+                      - containerPort: 9000
+                      - containerPort: 9001
+                    env:
+                      - name: MINIO_ROOT_USER
+                        value: "${MINIO_ACCESS_KEY}"
+                      - name: MINIO_ROOT_PASSWORD
+                        value: "${MINIO_SECRET_KEY}"
+                    volumeMounts:
+                      - name: data
+                        mountPath: /data
+                    resources:
+                      requests:
+                        cpu: 25m
+                        memory: 64Mi
+                      limits:
+                        cpu: 200m
+                        memory: 256Mi
+                volumes:
+                  - name: data
+                    emptyDir: {}
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ${MINIO_NAME}
+            namespace: ${NAMESPACE}
+          spec:
+            selector:
+              app: ${MINIO_NAME}
+            ports:
+              - name: api
+                port: 9000
+                targetPort: 9000
+              - name: console
+                port: 9001
+                targetPort: 9001
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: ${MINIO_NAME}
+            namespace: ${NAMESPACE}
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+          spec:
+            ingressClassName: nginx
+            tls:
+              - hosts:
+                  - ${MINIO_PUBLIC_HOST}
+                secretName: ${MINIO_PUBLIC_HOST}-cert
+            rules:
+              - host: ${MINIO_PUBLIC_HOST}
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: ${MINIO_NAME}
+                          port:
+                            number: 9000
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
             name: ${APP_NAME}
             namespace: ${NAMESPACE}
             labels:
@@ -385,6 +486,20 @@ jobs:
                         value: "${ENABLE_ANONCREDS:-true}"
                       - name: LOG_LEVEL
                         value: "${LOG_LEVEL:-info}"
+                      - name: MINIO_ENDPOINT
+                        value: "${MINIO_NAME}"
+                      - name: MINIO_PORT
+                        value: "9000"
+                      - name: MINIO_ACCESS_KEY
+                        value: "${MINIO_ACCESS_KEY}"
+                      - name: MINIO_SECRET_KEY
+                        value: "${MINIO_SECRET_KEY}"
+                      - name: MINIO_BUCKET
+                        value: "${MINIO_BUCKET}"
+                      - name: MINIO_USE_SSL
+                        value: "false"
+                      - name: MINIO_PUBLIC_URL
+                        value: "https://${MINIO_PUBLIC_HOST}"
           ---
           apiVersion: v1
           kind: Service
