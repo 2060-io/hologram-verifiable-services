@@ -465,22 +465,24 @@ issue_and_link() {
   ok "VTJSC URL: $jsc_url"
 
   # Issue the credential
+  echo "$claims_json" > /tmp/claims_ial.json
   local request_body
   request_body=$(jq -n \
     --arg fmt "jsonld" \
     --arg did "$agent_did" \
     --arg jsc "$jsc_url" \
-    --argjson claims "$claims_json" \
-    '{format: $fmt, did: $did, jsonSchemaCredentialId: $jsc, claims: $claims}')
+    --slurpfile claims /tmp/claims_ial.json \
+    '{format: $fmt, did: $did, jsonSchemaCredentialId: $jsc, claims: $claims[0]}')
 
   local issue_url="${admin_api}/v1/vt/issue-credential"
   log "Issuing credential via $issue_url"
 
+  echo "$request_body" > /tmp/request_ial.json
   local issue_code credential
   issue_code=$(curl -s -o /tmp/issue_self.json -w '%{http_code}' \
     -X POST "$issue_url" \
     -H 'Content-Type: application/json' \
-    -d "$request_body")
+    -d @/tmp/request_ial.json)
   credential=$(cat /tmp/issue_self.json)
 
   if [ "$issue_code" != "200" ] && [ "$issue_code" != "201" ]; then
@@ -503,17 +505,19 @@ issue_and_link() {
     -d "{\"credentialSchemaId\": \"$jsc_url\"}" > /dev/null 2>&1 || true
   log "Linking credential on agent: $link_url"
 
+  echo "$signed_cred" > /tmp/cred_ial.json
   local link_body
   link_body=$(jq -n \
     --arg sbi "$schema_base_id" \
-    --argjson cred "$signed_cred" \
-    '{schemaBaseId: $sbi, credential: $cred}')
+    --slurpfile cred /tmp/cred_ial.json \
+    '{schemaBaseId: $sbi, credential: $cred[0]}')
 
+  echo "$link_body" > /tmp/link_ial.json
   local link_code link_result
   link_code=$(curl -s -o /tmp/link_self.json -w '%{http_code}' \
     -X POST "$link_url" \
     -H 'Content-Type: application/json' \
-    -d "$link_body")
+    -d @/tmp/link_ial.json)
   link_result=$(cat /tmp/link_self.json)
 
   if [ "$link_code" != "200" ] && [ "$link_code" != "201" ]; then
@@ -533,24 +537,25 @@ issue_remote_and_link() {
   local target_did=$5
   local claims_json=$6
 
+  echo "$claims_json" > /tmp/claims_iral.json
   local request_body
   request_body=$(jq -n \
     --arg fmt "jsonld" \
     --arg did "$target_did" \
     --arg jsc "$jsc_url" \
-    --argjson claims "$claims_json" \
-    '{format: $fmt, did: $did, jsonSchemaCredentialId: $jsc, claims: $claims}')
+    --slurpfile claims /tmp/claims_iral.json \
+    '{format: $fmt, did: $did, jsonSchemaCredentialId: $jsc, claims: $claims[0]}')
 
   # Issue via remote API
   local issue_url="${remote_api}/v1/vt/issue-credential"
   log "Requesting credential from remote API: $issue_url"
-  log "Request body: $(echo "$request_body" | jq -c '.')"
 
+  echo "$request_body" > /tmp/request_iral.json
   local http_code credential
   http_code=$(curl -s -o /tmp/issue_response.json -w '%{http_code}' \
     -X POST "$issue_url" \
     -H 'Content-Type: application/json' \
-    -d "$request_body")
+    -d @/tmp/request_iral.json)
   credential=$(cat /tmp/issue_response.json)
 
   if [ "$http_code" != "200" ] && [ "$http_code" != "201" ]; then
@@ -579,17 +584,19 @@ issue_remote_and_link() {
     -d "{\"credentialSchemaId\": \"$jsc_url\"}" > /dev/null 2>&1 || true
   log "Linking credential on local agent: $link_url"
 
+  echo "$signed_cred" > /tmp/cred_iral.json
   local link_body
   link_body=$(jq -n \
     --arg sbi "$schema_base_id" \
-    --argjson cred "$signed_cred" \
-    '{schemaBaseId: $sbi, credential: $cred}')
+    --slurpfile cred /tmp/cred_iral.json \
+    '{schemaBaseId: $sbi, credential: $cred[0]}')
 
+  echo "$link_body" > /tmp/link_iral.json
   local link_code link_result
   link_code=$(curl -s -o /tmp/link_response.json -w '%{http_code}' \
     -X POST "$link_url" \
     -H 'Content-Type: application/json' \
-    -d "$link_body")
+    -d @/tmp/link_iral.json)
   link_result=$(cat /tmp/link_response.json)
 
   if [ "$link_code" != "200" ] && [ "$link_code" != "201" ]; then
