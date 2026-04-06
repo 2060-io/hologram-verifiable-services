@@ -14,6 +14,7 @@ export enum FlowType {
   PASSWORD = "PASSWORD",
   AUTHENTICATOR = "AUTHENTICATOR",
   SETUP = "SETUP",
+  CONFIG_AUTH = "CONFIG_AUTH",
 }
 
 export enum FlowStep {
@@ -51,7 +52,9 @@ export enum FlowStep {
 
   // /setup
   SETUP_AWAIT_CHOICE = "SETUP_AWAIT_CHOICE",
-  SETUP_AWAIT_AUTH_METHOD = "SETUP_AWAIT_AUTH_METHOD",
+
+  // /config_auth
+  CONFIG_AUTH_AWAIT_METHOD = "CONFIG_AUTH_AWAIT_METHOD",
 }
 
 export interface FlowState {

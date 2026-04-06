@@ -150,6 +150,24 @@ export class VsAgentClient {
     });
   }
 
+  async sendMediaUrl(
+    connectionId: string,
+    url: string,
+    description?: string
+  ): Promise<void> {
+    await this.request<unknown>("POST", "/v1/message", {
+      type: "media",
+      connectionId,
+      items: [
+        {
+          uri: url,
+          mimeType: "text/uri-list",
+          description: description || url,
+        },
+      ],
+    });
+  }
+
   async sendMessage(params: SendMessageRequest): Promise<void> {
     // Send text message
     await this.request<unknown>("POST", "/v1/message", {
@@ -177,10 +195,10 @@ export class VsAgentClient {
     contextualMenu?: ContextualMenu
   ): Promise<void> {
     await this.request<unknown>("POST", "/v1/message", {
-      type: "question",
+      type: "menu-display",
       connectionId,
-      content: question,
-      options,
+      prompt: question,
+      menuItems: options.map((o) => ({ id: o.id, text: o.title })),
     });
     if (contextualMenu) {
       await this.request<unknown>("POST", "/v1/message", {

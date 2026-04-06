@@ -340,6 +340,10 @@ export class Db {
   async mergeAccounts(oldConnectionId: string, newConnectionId: string): Promise<void> {
     await this.backend.transaction([
       {
+        sql: `UPDATE accounts SET "passwordHash" = COALESCE("passwordHash", (SELECT "passwordHash" FROM accounts WHERE "connectionId" = ${this.p(1)})), "authenticatorSecret" = COALESCE("authenticatorSecret", (SELECT "authenticatorSecret" FROM accounts WHERE "connectionId" = ${this.p(2)})), "updatedAt" = ${this.now()} WHERE "connectionId" = ${this.p(3)}`,
+        params: [oldConnectionId, oldConnectionId, newConnectionId],
+      },
+      {
         sql: `UPDATE avatars SET "accountConnectionId" = ${this.p(1)} WHERE "accountConnectionId" = ${this.p(2)}`,
         params: [newConnectionId, oldConnectionId],
       },

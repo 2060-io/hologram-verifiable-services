@@ -38,16 +38,34 @@ export class Chatbot {
     console.log(`New connection: ${connectionId}`);
     await this.db.ensureAccount(connectionId);
     this.store.resetFlow(connectionId);
-    await this.send(connectionId, `Welcome to Avatar Issuer!\nType a command or use the menu.`);
+
+    // Auto-run /setup for first-time users (no auth methods configured)
+    if (!(await this.db.hasAuthMethods(connectionId))) {
+      await this.cmdSetup(connectionId);
+      return;
+    }
+
+    await this.send(connectionId, `Welcome back to Avatar Issuer!\nType a command or use the menu.`);
   }
 
   async onMenuSelect(connectionId: string, menuId: string): Promise<void> {
     console.log(`Menu select from ${connectionId}: ${menuId}`);
     await this.db.ensureAccount(connectionId);
 
-    // Menu selections that map directly to commands
+    // Abort always takes priority
+    if (menuId === "abort") {
+      await this.handleInput(connectionId, "/abort");
+      return;
+    }
+
+    // If a flow is active, route the selection to it first
+    if (this.store.isInFlow(connectionId)) {
+      await this.routeToFlow(connectionId, menuId);
+      return;
+    }
+
+    // Contextual menu selections that map to commands (only when no flow active)
     const commandMap: Record<string, string> = {
-      abort: "/abort",
       new_avatar: "/new",
       list: "/list",
       restore: "/restore",
@@ -56,6 +74,7 @@ export class Chatbot {
       logout: "/logout",
       password: "/password",
       authenticator: "/authenticator",
+      help: "/usage",
     };
 
     const cmd = commandMap[menuId];
@@ -64,7 +83,7 @@ export class Chatbot {
       return;
     }
 
-    // Question-answer selections during flows
+    // Fallback — treat as free text input
     await this.handleInput(connectionId, menuId);
   }
 
@@ -106,8 +125,13 @@ export class Chatbot {
           return this.cmdAuthenticator(connectionId);
         case "/setup":
           return this.cmdSetup(connectionId);
+        case "/config_auth":
+          return this.cmdConfigAuth(connectionId);
         case "/logout":
           return this.cmdLogout(connectionId);
+        case "/usage":
+        case "/help":
+          return this.cmdUsage(connectionId);
         default:
           return this.send(connectionId, `Unknown command: ${cmd}`);
       }
@@ -267,8 +291,10 @@ export class Chatbot {
       // /setup
       case FlowStep.SETUP_AWAIT_CHOICE:
         return this.flowSetupChoice(connectionId, input);
-      case FlowStep.SETUP_AWAIT_AUTH_METHOD:
-        return this.flowSetupAuthMethod(connectionId, input);
+
+      // /config_auth
+      case FlowStep.CONFIG_AUTH_AWAIT_METHOD:
+        return this.flowConfigAuthMethod(connectionId, input);
 
       default:
         await this.send(connectionId, "Type a command or use the menu. Try /new to create an avatar.");
@@ -338,7 +364,10 @@ export class Chatbot {
 
   private async doIssueInternal(connectionId: string, avatarName: string): Promise<void> {
     try {
-      const claimsArray = [{ name: "name", value: avatarName }];
+      const claimsArray = this.schema.attributes.map((attr) => ({
+        name: attr.name,
+        value: attr.name === "name" ? avatarName : "",
+      }));
       console.log(`Issuing credential to ${connectionId} for avatar "${avatarName}"`);
 
       await this.client.issueCredentialOverConnection(
@@ -361,8 +390,7 @@ export class Chatbot {
   private async flowRestoreName(connectionId: string, avatarName: string): Promise<void> {
     const ownerConnectionId = await this.db.findAccountByAvatar(avatarName);
     if (!ownerConnectionId) {
-      this.store.resetFlow(connectionId);
-      return this.send(connectionId, `Avatar "${avatarName}" not found.`);
+      return this.send(connectionId, `Avatar "${avatarName}" not found. Enter the name of an avatar you want to restore:`);
     }
     if (ownerConnectionId === connectionId) {
       this.store.resetFlow(connectionId);
@@ -438,6 +466,7 @@ export class Chatbot {
 
   private async completeRestore(connectionId: string, oldConnectionId: string): Promise<void> {
     await this.db.mergeAccounts(oldConnectionId, connectionId);
+    await this.db.setAuthenticated(connectionId);
     this.store.resetFlow(connectionId);
 
     const avatars = await this.db.listAvatars(connectionId);
@@ -516,6 +545,7 @@ export class Chatbot {
     const flow = this.store.getFlow(connectionId);
     if (confirm === flow.data.password) {
       await this.db.setPassword(connectionId, confirm);
+      await this.db.setAuthenticated(connectionId);
       this.store.resetFlow(connectionId);
       await this.send(connectionId, "Password saved successfully!");
     } else {
@@ -530,24 +560,15 @@ export class Chatbot {
 
   private async startAuthenticatorSetup(connectionId: string): Promise<void> {
     const secret = new OTPAuth.Secret({ size: 20 });
-    const totp = new OTPAuth.TOTP({
-      issuer: "Avatar Issuer",
-      label: connectionId.slice(0, 16),
-      algorithm: "SHA1",
-      digits: 6,
-      period: 30,
-      secret,
-    });
 
     this.store.setFlow(connectionId, FlowType.AUTHENTICATOR, FlowStep.AUTHENTICATOR_AWAIT_OTP, {
       secret: secret.base32,
     });
 
-    const uri = totp.toString();
-    await this.send(
-      connectionId,
-      `Set up your authenticator app with this secret:\n\n\`${secret.base32}\`\n\nOr use this URI:\n${uri}\n\nThen enter the 6-digit code to confirm:`
-    );
+    await this.send(connectionId, "Set up your authenticator app (Google Authenticator, Authy, etc.).");
+    await this.send(connectionId, "Copy this secret and add it manually to your app:");
+    await this.send(connectionId, secret.base32);
+    await this.send(connectionId, "Then enter the 6-digit code to confirm:");
   }
 
   private async flowAuthenticatorOtp(connectionId: string, otp: string): Promise<void> {
@@ -556,6 +577,7 @@ export class Chatbot {
 
     if (this.verifyTotp(secret, otp)) {
       await this.db.setAuthenticatorSecret(connectionId, secret);
+      await this.db.setAuthenticated(connectionId);
       this.store.resetFlow(connectionId);
       await this.send(connectionId, "Authenticator configured successfully!");
     } else {
@@ -570,29 +592,36 @@ export class Chatbot {
 
   private async flowSetupChoice(connectionId: string, choice: string): Promise<void> {
     if (choice === "setup_restore") {
-      // Delegate to /restore
       return this.cmdRestore(connectionId);
     } else if (choice === "setup_new") {
-      this.store.setFlow(connectionId, FlowType.SETUP, FlowStep.SETUP_AWAIT_AUTH_METHOD);
-      await this.client.sendQuestionMessage(
-        connectionId,
-        "Choose an authentication method to set up:",
-        [
-          { id: "setup_password", title: "Password" },
-          { id: "setup_authenticator", title: "Authenticator" },
-        ],
-        await this.buildMenu(connectionId)
-      );
+      return this.cmdConfigAuth(connectionId);
     } else {
       await this.send(connectionId, "Invalid choice. Please select from the options.");
     }
   }
 
-  private async flowSetupAuthMethod(connectionId: string, method: string): Promise<void> {
-    if (method === "setup_password") {
+  // -----------------------------------------------------------------------
+  // /config_auth flow
+  // -----------------------------------------------------------------------
+
+  private async cmdConfigAuth(connectionId: string): Promise<void> {
+    this.store.setFlow(connectionId, FlowType.CONFIG_AUTH, FlowStep.CONFIG_AUTH_AWAIT_METHOD);
+    await this.client.sendQuestionMessage(
+      connectionId,
+      "Choose an authentication method to set up:",
+      [
+        { id: "config_password", title: "Password" },
+        { id: "config_authenticator", title: "Authenticator" },
+      ],
+      await this.buildMenu(connectionId)
+    );
+  }
+
+  private async flowConfigAuthMethod(connectionId: string, method: string): Promise<void> {
+    if (method === "config_password") {
       this.store.setFlow(connectionId, FlowType.PASSWORD, FlowStep.PASSWORD_AWAIT_ENTER);
       await this.send(connectionId, "Enter your new password:");
-    } else if (method === "setup_authenticator") {
+    } else if (method === "config_authenticator") {
       await this.startAuthenticatorSetup(connectionId);
     } else {
       await this.send(connectionId, "Invalid choice. Please select from the options.");
@@ -625,7 +654,7 @@ export class Chatbot {
     } else if (hasAuth) {
       options.push({ id: "auth", title: "Authenticate" });
     } else {
-      options.push({ id: "setup", title: "Setup" });
+      options.push({ id: "setup", title: "Setup Authentication" });
     }
 
     options.push({ id: "new_avatar", title: "New Avatar" });
@@ -637,6 +666,8 @@ export class Chatbot {
       options.push({ id: "authenticator", title: "Authenticator Setup" });
     }
 
+    options.push({ id: "help", title: "Help" });
+
     return {
       title: "Avatar Issuer",
       description: authenticated ? "Authenticated" : "Not Authenticated",
@@ -647,6 +678,33 @@ export class Chatbot {
   // -----------------------------------------------------------------------
   // Helpers
   // -----------------------------------------------------------------------
+
+  private async cmdUsage(connectionId: string): Promise<void> {
+    const authenticated = await this.db.isAuthenticated(connectionId);
+    const hasAuth = await this.db.hasAuthMethods(connectionId);
+
+    const lines: string[] = ["Available commands:"];
+    lines.push("/new — Create a new avatar");
+    lines.push("/list — List your avatars");
+    lines.push("/issue <name> — Reissue credential for an avatar");
+    lines.push("/delete — Delete an avatar");
+    lines.push("/restore — Restore avatar(s) from another account");
+
+    if (!hasAuth) {
+      lines.push("/setup — Set up authentication");
+    } else if (!authenticated) {
+      lines.push("/auth — Authenticate");
+    } else {
+      lines.push("/password — Set or change password");
+      lines.push("/authenticator — Set up authenticator app");
+      lines.push("/logout — Log out");
+    }
+
+    lines.push("/abort — Cancel current operation");
+    lines.push("/usage — Show this help");
+
+    await this.send(connectionId, lines.join("\n"));
+  }
 
   private async send(connectionId: string, text: string): Promise<void> {
     await this.client.sendMessage({

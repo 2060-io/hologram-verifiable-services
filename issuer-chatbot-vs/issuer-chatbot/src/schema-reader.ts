@@ -194,14 +194,15 @@ export async function discoverSchema(
     );
   }
 
-  // Only collect required attributes from the user
-  const attributes = allAttributes.filter((a) => a.required);
+  // Include all attributes — VS-Agent requires every schema attribute in the
+  // credential claims array, even optional ones (sent as empty string).
+  const attributes = allAttributes;
 
   const title = (schema.title as string) || "Credential";
 
   console.log(
     `Discovered schema "${title}" with ${attributes.length} attributes: ` +
-      attributes.map((a) => a.name).join(", ")
+      attributes.map((a) => `${a.name}${a.required ? "*" : ""}`).join(", ")
   );
 
   // Ensure a local AnonCreds credential type exists on the issuer agent

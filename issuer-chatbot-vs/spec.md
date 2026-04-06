@@ -38,7 +38,8 @@ Here are the possible commands / flow and their behavior:
 /auth: flow - authenticate. Send a menu message to user with enabled authentication methods. User authenticate with one of the methods. When user is authenticated, he/she can change it password with /password or reconfigure the authenticator with /authenticator. Persist authentication timestamp (general) and individually (password and authenticator). No auth timeout.
 /password: flow - setup or change password. If a password and/or an authenticator configuration already exists for this connectionId, user must authenticated first (see /auth). After this step, request password, confirmation, and if match, save it to the account table.
 /authenticator: flow - setup an authenticator app (otp). If a password and/or an authenticator configuration already exists for this connectionId, user must be authenticated first (see /auth). After this step, request authenticator code, confirm validating an otp, and if match, save it to the account table.
-/setup: flow - can be used only if current connectionId has no authentication method configured in account row. Offer 2 options to user: Restore Avatar(s), New Account. If user selects Restore Avatar(s), execute the /restore flow. Else, ask the user which authentication ,method they want to use. They can choose between Password or Authenticator. Execute the corresponding flow.
+/setup: flow - can be used only if current connectionId has no authentication method configured in account row. Offer 2 options to user: Restore Avatar(s), New Account. If user selects Restore Avatar(s), execute the /restore flow. if New Account, /config_auth.
+/config_auth: flow - ask the user which authentication method they want to use. They can choose between Password or Authenticator. Execute the corresponding flow.
 /logout: set current connectionId as not authenticated.
 
 ### Contextual Menu

@@ -77,18 +77,14 @@ export function createWebhookRouter(chatbot: Chatbot): Router {
         );
       }
 
-      if (
-        msgType === "contextual-menu-select" ||
-        msgType === "menu-select" ||
-        msg.menuId ||
-        msg.selectedOption
-      ) {
-        const menuId =
-          msg.selectionId || msg.menuId || msg.selectedOption || msg.content || msg.text || "";
-        await chatbot.onMenuSelect(connectionId, menuId);
-      } else if (msgType === "answer" || msgType === "question-answer") {
-        const selectionId =
-          msg.selectionId || msg.content || msg.text || "";
+      if (msgType === "contextual-menu-select") {
+        // ContextualMenuSelectMessage: { selectionId: string }
+        const selectionId = msg.selectionId || "";
+        await chatbot.onMenuSelect(connectionId, selectionId);
+      } else if (msgType === "menu-select") {
+        // MenuSelectMessage: { menuItems: [{ id: string }] }
+        const menuItems = msg.menuItems as { id: string }[] | undefined;
+        const selectionId = menuItems?.[0]?.id || "";
         await chatbot.onMenuSelect(connectionId, selectionId);
       } else if (msgType === "text") {
         const text = msg.content || msg.text || "";
