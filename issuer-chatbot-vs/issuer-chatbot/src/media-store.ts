@@ -88,6 +88,27 @@ export class MediaStore {
   }
 
   /**
+   * Ensure the bucket exists (lazy re-creation after MinIO restarts).
+   */
+  private async ensureBucket(): Promise<void> {
+    const exists = await this.client.bucketExists(this.bucket);
+    if (!exists) {
+      await this.client.makeBucket(this.bucket);
+      const lifecycleConfig = {
+        Rule: [
+          {
+            ID: "expire-after-24h",
+            Status: "Enabled",
+            Expiration: { Days: 1 },
+          },
+        ],
+      };
+      await this.client.setBucketLifecycle(this.bucket, lifecycleConfig);
+      console.log(`MinIO: re-created bucket "${this.bucket}" with 24h expiry`);
+    }
+  }
+
+  /**
    * Upload a buffer to MinIO and return a presigned GET URL (24h TTL).
    */
   async upload(
@@ -95,6 +116,7 @@ export class MediaStore {
     buffer: Buffer,
     mimeType: string
   ): Promise<string> {
+    await this.ensureBucket();
     await this.client.putObject(this.bucket, objectName, buffer, buffer.length, {
       "Content-Type": mimeType,
     });
