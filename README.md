@@ -1,4 +1,4 @@
-# Hologram Avatar
+# Hologram Verifiable Services
 
 A collection of Verifiable Services (VS) deployed via GitHub Actions to Kubernetes, showcasing AI agents, credential issuers, and chatbots within the Hologram + Verana ecosystem.
 
