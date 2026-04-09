@@ -7,20 +7,20 @@ A collection of Verifiable Services (VS) deployed via GitHub Actions to Kubernet
 ## Architecture
 
 ```
-organization-vs   ← Trust anchor (ECS credentials, Trust Registry, schema)
+organization   ← Trust anchor (ECS credentials, Trust Registry, schema)
 ├── avatar        ← Issues credentials via DIDComm chatbot
 └── github-agent  ← AI-powered GitHub assistant with MCP integration
 ```
 
-**organization-vs** is the trust anchor: it obtains Organization + Service credentials from the ECS Trust Registry, creates its own Trust Registry with a custom schema, and registers an AnonCreds credential definition.
+**organization** is the trust anchor: it obtains Organization + Service credentials from the ECS Trust Registry, creates its own Trust Registry with a custom schema, and registers an AnonCreds credential definition.
 
-Child services obtain a **Service credential** from organization-vs, making their identity and permissions publicly verifiable on the Verana blockchain.
+Child services obtain a **Service credential** from organization, making their identity and permissions publicly verifiable on the Verana blockchain.
 
 ## Services
 
 | Service | Role | Ingress | Chart |
 |---------|------|---------|-------|
-| `organization-vs` | Trust anchor | `organization-vs.vs.hologram.zone` | `vs-agent-chart` |
+| `organization` | Trust anchor | `organization.vs.hologram.zone` | `vs-agent-chart` |
 | `avatar` | Credential issuer (chatbot) | `avatar.vs.hologram.zone` | `vs-agent-chart` |
 | `github-agent` | AI agent + MCP | `github-agent.vs.hologram.zone` | `hologram-generic-ai-agent-chart` |
 | `playground` | Landing page | `vs.hologram.zone` | — (raw K8s) |
@@ -30,7 +30,7 @@ Child services obtain a **Service credential** from organization-vs, making thei
 ```
 hologram-verifiable-services/
   common/               # Shared shell helpers
-  organization-vs/      # Trust anchor (workflow 1)
+  organization/         # Trust anchor (workflow 1)
   avatar/               # Credential issuer chatbot (workflow 2)
   github-agent/         # GitHub AI agent with MCP (workflow 3)
   playground/           # Landing page (workflow 6)
@@ -56,7 +56,7 @@ Workflows are numbered to indicate deployment order. **Run them in order** when 
 
 | # | Workflow | Steps |
 |---|---------|-------|
-| 1 | Deploy Organization VS | `deploy` · `get-ecs-credentials` · `create-trust-registry` · `all` |
+| 1 | Deploy Organization | `deploy` · `get-ecs-credentials` · `create-trust-registry` · `all` |
 | 2 | Deploy Avatar | `deploy` · `get-credentials` · `deploy-chatbot` · `all` |
 | 3 | Deploy GitHub Agent | `deploy` · `get-credentials` · `all` |
 | 6 | Deploy Playground | — (triggered on push to main) |
@@ -70,7 +70,7 @@ Workflows are numbered to indicate deployment order. **Run them in order** when 
 
 All services are deployed under the `vs.hologram.zone` domain:
 
-- `organization-vs.vs.hologram.zone` — Organization VS Agent
+- `organization.vs.hologram.zone` — Organization Agent
 - `avatar.vs.hologram.zone` — Avatar VS Agent + Chatbot
 - `github-agent.vs.hologram.zone` — GitHub Agent VS Agent + Chatbot
 - `vs.hologram.zone` — Playground landing page
@@ -83,11 +83,11 @@ All services are deployed under the `vs.hologram.zone` domain:
 - ngrok (authenticated)
 - `curl`, `jq`
 
-### 1. Start organization-vs
+### 1. Start organization
 
 ```bash
-source organization-vs/config.env
-./organization-vs/scripts/setup.sh
+source organization/config.env
+./organization/scripts/setup.sh
 ```
 
 ### 2. Start a child service
@@ -109,7 +109,7 @@ export OPENAI_API_KEY=sk-...
 ./github-agent/scripts/start.sh
 ```
 
-> **Note:** Only one ngrok tunnel can run at a time on the free plan. For local development with multiple services, deploy organization-vs to K8s first, then point child services to its public URL via `ORG_VS_PUBLIC_URL` and `ORG_VS_ADMIN_URL`.
+> **Note:** Only one ngrok tunnel can run at a time on the free plan. For local development with multiple services, deploy organization to K8s first, then point child services to its public URL via `ORG_VS_PUBLIC_URL` and `ORG_VS_ADMIN_URL`.
 
 ## Shared Code
 
