@@ -133,6 +133,10 @@ flows:
   authentication:
     enabled: true
     credentialDefinitionId: ${CREDENTIAL_DEFINITION_ID}
+    adminAvatars:
+      - mj
+      - mjfelis
+      - fafa
   menu:
     items:
       - id: mcp-config
