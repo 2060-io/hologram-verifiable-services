@@ -1,4 +1,4 @@
-name: 3_ Deploy GitHub Agent VS
+name: 3_ Deploy GitHub Agent
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
         default: all
 
 jobs:
-  deploy-github-agent-vs:
+  deploy-github-agent:
     name: Deploy GitHub Agent VS
     runs-on: ubuntu-latest
     steps:
@@ -32,19 +32,19 @@ jobs:
       - name: Load configuration
         run: |
           set -a
-          source github-agent-vs/config.env
+          source github-agent/config.env
           set +a
           while IFS= read -r line; do
             key="${line%%=*}"
             echo "${key}=${!key}" >> "$GITHUB_ENV"
-          done < <(grep -E '^[A-Z_]+=' github-agent-vs/config.env)
+          done < <(grep -E '^[A-Z_]+=' github-agent/config.env)
 
       - name: Parse deployment.yaml
         run: |
-          CHART_SOURCE=$(yq '.chartSource' github-agent-vs/deployment.yaml)
-          CHART_VERSION=$(yq '.chartVersion' github-agent-vs/deployment.yaml)
+          CHART_SOURCE=$(yq '.chartSource' github-agent/deployment.yaml)
+          CHART_VERSION=$(yq '.chartVersion' github-agent/deployment.yaml)
           CHART_NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
-          RELEASE_NAME=$(yq '.nameOverride' github-agent-vs/deployment.yaml)
+          RELEASE_NAME=$(yq '.nameOverride' github-agent/deployment.yaml)
           echo "CHART_SOURCE=${CHART_SOURCE}" >> "$GITHUB_ENV"
           echo "CHART_VERSION=${CHART_VERSION}" >> "$GITHUB_ENV"
           echo "CHART_NAMESPACE=${CHART_NAMESPACE}" >> "$GITHUB_ENV"
@@ -88,7 +88,7 @@ jobs:
             VSAGENT_DB_PWD="$(openssl rand -hex 16)"
             echo "::warning::GH_AGENT_VSAGENT_DB_PASSWORD secret not set — using generated password"
           fi
-          kubectl create secret generic github-agent-vs-db-secret \
+          kubectl create secret generic github-agent-db-secret \
             --namespace "$NAMESPACE" \
             --from-literal=POSTGRES_PASSWORD="$VSAGENT_DB_PWD" \
             --dry-run=client -o yaml | kubectl apply -f -
@@ -96,16 +96,16 @@ jobs:
       - name: Create agent pack ConfigMap
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
-          kubectl create configmap github-agent-vs-agent-pack \
+          kubectl create configmap github-agent-agent-pack \
             --namespace "$CHART_NAMESPACE" \
-            --from-file=agent-pack.yaml=github-agent-vs/agent-pack.yaml \
+            --from-file=agent-pack.yaml=github-agent/agent-pack.yaml \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy via Helm
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
           # Strip chart metadata before passing to Helm
-          yq 'del(.chartSource, .chartVersion)' github-agent-vs/deployment.yaml > /tmp/helm-values.yaml
+          yq 'del(.chartSource, .chartVersion)' github-agent/deployment.yaml > /tmp/helm-values.yaml
 
           helm upgrade --install "$RELEASE_NAME" "$CHART_SOURCE" \
             --version "$CHART_VERSION" \
@@ -128,7 +128,7 @@ jobs:
         if: inputs.step == 'get-credentials' || inputs.step == 'all'
         run: |
           # The vs-agent service name inside the chart
-          kubectl port-forward -n "$CHART_NAMESPACE" "svc/github-agent-vs" 3002:3000 &
+          kubectl port-forward -n "$CHART_NAMESPACE" "svc/github-agent" 3002:3000 &
           echo "CHILD_PF_PID=$!" >> "$GITHUB_ENV"
           sleep 5
           curl -sf http://localhost:3002/v1/agent > /dev/null || {
@@ -160,7 +160,7 @@ jobs:
           CHILD_DID=$(curl -sf "${CHILD_ADMIN_API}/v1/agent" | jq -r '.publicDid')
           echo "GitHub Agent DID: $CHILD_DID"
 
-          CHILD_PUBLIC_URL="https://github-agent-vs.avatar.hologram.zone"
+          CHILD_PUBLIC_URL="https://github-agent.vs.hologram.zone"
           if has_linked_vp "$CHILD_PUBLIC_URL" "service"; then
             ok "Service credential already linked — skipping"
           else
@@ -197,6 +197,6 @@ jobs:
         run: |
           echo "## GitHub Agent VS" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **VS Agent:** https://github-agent-vs.avatar.hologram.zone/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **VS Agent:** https://github-agent.vs.hologram.zone/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Chart:** ${CHART_SOURCE}:${CHART_VERSION}" >> "$GITHUB_STEP_SUMMARY"

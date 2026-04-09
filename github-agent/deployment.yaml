@@ -6,14 +6,14 @@
 #   - Redis (vector store, memory, queues)
 #   - PostgreSQL (session persistence)
 #
-# Deployment target: avatar.hologram.zone
+# Deployment target: vs.hologram.zone
 chartSource: oci://registry-1.docker.io/io2060/hologram-generic-ai-agent-chart
 chartVersion: v1.11.0-dev.2
 
 global:
-  domain: avatar.hologram.zone
+  domain: vs.hologram.zone
 
-nameOverride: 'github-agent-vs-chart'
+nameOverride: 'github-agent-chart'
 
 # === Redis ===
 redis:
@@ -97,11 +97,11 @@ chatbot:
     - name: AGENT_MEMORY_WINDOW
       value: '20'
     - name: REDIS_URL
-      value: 'redis://github-agent-vs-chart-redis.{{ .Release.Namespace }}:6379'
+      value: 'redis://github-agent-chart-redis.{{ .Release.Namespace }}:6379'
     - name: VS_AGENT_ADMIN_URL
-      value: 'http://github-agent-vs.{{ .Release.Namespace }}:3000'
+      value: 'http://github-agent.{{ .Release.Namespace }}:3000'
     - name: POSTGRES_HOST
-      value: 'github-agent-vs-chart-postgres.{{ .Release.Namespace }}'
+      value: 'github-agent-chart-postgres.{{ .Release.Namespace }}'
     - name: GITHUB_MCP_URL
       value: 'https://api.githubcopilot.com/mcp/'
   agentPack:
@@ -109,7 +109,7 @@ chatbot:
     name: github-agent
     mountPath: /app/agent-packs/github-agent
     fileName: agent-pack.yaml
-    existingConfigMap: 'github-agent-vs-agent-pack'
+    existingConfigMap: 'github-agent-agent-pack'
   secret:
     POSTGRES_PASSWORD: 'placeholder'
     POSTGRES_USER: 'github_agent_db'
@@ -134,13 +134,13 @@ artemis:
 # === VS Agent ===
 vs-agent-chart:
   enabled: true
-  name: github-agent-vs
+  name: github-agent
   didcommLabel: 'GitHub Agent'
   didcommInvitationImageUrl: 'https://hologram.zone/images/github.svg'
-  eventsBaseUrl: http://github-agent-vs-chart-chatbot:3003
+  eventsBaseUrl: http://github-agent-chart-chatbot:3003
   ingress:
-    host: "github-agent-vs.{{ .Values.global.domain }}"
-    tlsSecret: "github-agent-vs.{{ .Values.global.domain }}-cert"
+    host: "github-agent.{{ .Values.global.domain }}"
+    tlsSecret: "github-agent.{{ .Values.global.domain }}-cert"
     public:
       enableCors: true
     private:
@@ -152,7 +152,7 @@ vs-agent-chart:
     - name: USE_CORS
       value: "true"
     - name: REDIS_HOST
-      value: "github-agent-vs-chart-redis"
+      value: "github-agent-chart-redis"
     - name: AGENT_LOG_LEVEL
       value: "3"
     - name: SELF_ISSUED_VTC_ORG_TYPE

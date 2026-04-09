@@ -9,7 +9,7 @@
 #   - ngrok running on port 3003
 #
 # Usage:
-#   source issuer-chatbot-vs/config.env
+#   source avatar/config.env
 #   export NGROK_DOMAIN=your-domain.ngrok-free.app
 #   docker compose up --build
 #

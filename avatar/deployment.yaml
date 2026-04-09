@@ -1,18 +1,18 @@
 # Issuer Chatbot VS Agent deployment — Helm chart values
 #
-# Hardcoded for hologram-avatar testnet deployment on avatar.hologram.zone
+# Hardcoded for hologram-avatar testnet deployment on vs.hologram.zone
 chartSource: oci://registry-1.docker.io/veranalabs/vs-agent-chart
 chartVersion: v1.9.1
 
 global:
-  domain: avatar.hologram.zone
+  domain: vs.hologram.zone
 
-name: issuer-chatbot-vs
+name: avatar
 replicas: 1
 
 adminPort: 3000
 didcommPort: 3001
-eventsBaseUrl: "https://issuer-chatbot-vs.avatar.hologram.zone"
+eventsBaseUrl: "https://avatar.vs.hologram.zone"
 publicDidMethod: "webvh"
 
 resources:
@@ -24,8 +24,8 @@ resources:
     memory: 512Mi
 
 ingress:
-  host: "issuer-chatbot-vs.avatar.hologram.zone"
-  tlsSecret: "issuer-chatbot-vs.avatar.hologram.zone-cert"
+  host: "avatar.vs.hologram.zone"
+  tlsSecret: "avatar.vs.hologram.zone-cert"
   public:
     enableCors: true
   private:
@@ -36,7 +36,7 @@ ingress:
 
 database:
   enabled: true
-  existingSecret: issuer-chatbot-vs-db-secret
+  existingSecret: avatar-db-secret
   secretPwdKey: POSTGRES_PASSWORD
   user: vsagent
   resources:

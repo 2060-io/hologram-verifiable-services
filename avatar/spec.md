@@ -78,12 +78,12 @@ The chatbot itself has no public-facing HTTP endpoint — it only communicates w
 
 ### Solution: MinIO sidecar
 
-Deploy [MinIO](https://min.io/) as a **sidecar container** in the existing issuer-chatbot-vs StatefulSet. MinIO provides S3-compatible object storage with native support for bucket lifecycle policies (automatic object expiration).
+Deploy [MinIO](https://min.io/) as a **sidecar container** in the existing avatar StatefulSet. MinIO provides S3-compatible object storage with native support for bucket lifecycle policies (automatic object expiration).
 
 #### Architecture
 
 ```
-┌─ StatefulSet: issuer-chatbot-vs ──────────────────────────┐
+┌─ StatefulSet: avatar ──────────────────────────┐
 │                                                            │
 │  ┌─────────────┐   admin API   ┌──────────────────────┐   │
 │  │  VS Agent   │ ◄──────────── │  Issuer Chatbot      │   │
@@ -98,8 +98,8 @@ Deploy [MinIO](https://min.io/) as a **sidecar container** in the existing issue
 └────────────────────────────────────────────────────────────┘
          │ public ingress                │ public ingress
          ▼                               ▼
-  issuer-chatbot-vs.              media.issuer-chatbot-vs.
-  avatar.hologram.zone            avatar.hologram.zone
+  avatar.              media.avatar.
+  vs.hologram.zone            vs.hologram.zone
 ```
 
 #### Bucket and lifecycle
@@ -115,7 +115,7 @@ When the chatbot uploads a processed image to MinIO, it generates a **presigned 
 - Is self-contained (signature embedded as query parameters)
 - Requires no authentication headers to download
 - Expires automatically after 24h
-- Points to the MinIO public ingress (`media.issuer-chatbot-vs.avatar.hologram.zone`)
+- Points to the MinIO public ingress (`media.avatar.vs.hologram.zone`)
 
 Combined with the lifecycle policy, objects are both inaccessible (expired URL) and deleted (lifecycle) after 24h.
 
@@ -144,15 +144,15 @@ Combined with the lifecycle policy, objects are both inaccessible (expired URL) 
 | `MINIO_ACCESS_KEY` | MinIO root user | from K8s Secret |
 | `MINIO_SECRET_KEY` | MinIO root password | from K8s Secret |
 | `MINIO_BUCKET` | Bucket name | `avatar-previews` |
-| `MINIO_PUBLIC_URL` | Public base URL for presigned URLs | `https://media.issuer-chatbot-vs.avatar.hologram.zone` |
+| `MINIO_PUBLIC_URL` | Public base URL for presigned URLs | `https://media.avatar.vs.hologram.zone` |
 | `MINIO_USE_SSL` | Use SSL for internal connection | `false` (sidecar on localhost) |
 
 #### Deployment additions
 
 - **Sidecar container** in the StatefulSet: `minio/minio` image, minimal resources (64Mi–128Mi RAM)
 - **PVC or emptyDir**: since objects are ephemeral (24h), an `emptyDir` volume is sufficient. If persistence across pod restarts is desired, a small PVC (e.g. 1Gi) can be used
-- **Ingress**: `media.issuer-chatbot-vs.avatar.hologram.zone` → MinIO port 9000, with TLS
-- **K8s Secret**: `issuer-chatbot-vs-minio-secret` containing `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY`
+- **Ingress**: `media.avatar.vs.hologram.zone` → MinIO port 9000, with TLS
+- **K8s Secret**: `avatar-minio-secret` containing `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY`
 - **Init or startup**: on chatbot startup, ensure the bucket exists and the lifecycle policy (24h expiry) is applied via the S3 API
 
 #### Dependencies

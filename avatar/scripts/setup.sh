@@ -16,8 +16,8 @@
 #   - Organization VS running (ORG_VS_ADMIN_URL reachable)
 #
 # Usage:
-#   source issuer-chatbot-vs/config.env
-#   ./issuer-chatbot-vs/scripts/setup.sh
+#   source avatar/config.env
+#   ./avatar/scripts/setup.sh
 #
 # =============================================================================
 
@@ -40,7 +40,7 @@ source "${REPO_ROOT}/common/common.sh"
 
 NETWORK="${NETWORK:-testnet}"
 VS_AGENT_IMAGE="${VS_AGENT_IMAGE:-veranalabs/vs-agent:latest}"
-VS_AGENT_CONTAINER_NAME="${VS_AGENT_CONTAINER_NAME:-issuer-chatbot-vs}"
+VS_AGENT_CONTAINER_NAME="${VS_AGENT_CONTAINER_NAME:-avatar}"
 VS_AGENT_ADMIN_PORT="${VS_AGENT_ADMIN_PORT:-3002}"
 VS_AGENT_PUBLIC_PORT="${VS_AGENT_PUBLIC_PORT:-3003}"
 VS_AGENT_DATA_DIR="${VS_AGENT_DATA_DIR:-${SERVICE_DIR}/data}"
@@ -123,7 +123,7 @@ fi
 log "Starting ngrok tunnel on port ${VS_AGENT_PUBLIC_PORT}..."
 pkill -f "ngrok http ${VS_AGENT_PUBLIC_PORT}" 2>/dev/null || true
 sleep 1
-ngrok http "$VS_AGENT_PUBLIC_PORT" --log=stdout > /tmp/ngrok-issuer-chatbot-vs.log 2>&1 &
+ngrok http "$VS_AGENT_PUBLIC_PORT" --log=stdout > /tmp/ngrok-avatar.log 2>&1 &
 NGROK_PID=$!
 sleep 5
 
@@ -406,7 +406,7 @@ echo "  AnonCreds Cred Def: $ANONCREDS_CRED_DEF_ID"
 fi
 echo ""
 echo "  Start the chatbot:"
-echo "    ./issuer-chatbot-vs/scripts/start.sh"
+echo "    ./avatar/scripts/start.sh"
 echo ""
 echo "  To stop:"
 echo "    docker stop $VS_AGENT_CONTAINER_NAME"

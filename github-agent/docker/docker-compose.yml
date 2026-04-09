@@ -14,10 +14,10 @@
 #   - OPENAI_API_KEY set in environment
 #
 # Usage:
-#   source github-agent-vs/config.env
+#   source github-agent/config.env
 #   export NGROK_DOMAIN=your-domain.ngrok-free.app
 #   export OPENAI_API_KEY=sk-...
-#   docker compose -f github-agent-vs/docker/docker-compose.yml up
+#   docker compose -f github-agent/docker/docker-compose.yml up
 #
 # =============================================================================
 

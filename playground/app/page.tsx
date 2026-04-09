@@ -25,22 +25,22 @@ const services = [
     workflow: "1_deploy-organization-vs",
   },
   {
-    name: "Issuer Chatbot VS",
+    name: "Avatar",
     role: "Credential Issuer",
     desc: "A DIDComm chatbot that issues verifiable credentials to users through conversational interactions in Hologram Messaging.",
     icon: MessageSquare,
     color: "text-violet-600 bg-violet-50",
-    endpoint: "https://issuer-chatbot-vs.avatar.hologram.zone",
-    workflow: "2_deploy-issuer-chatbot-vs",
+    endpoint: "https://avatar.vs.hologram.zone",
+    workflow: "2_deploy-avatar",
   },
   {
-    name: "GitHub Agent VS",
+    name: "GitHub Agent",
     role: "AI Agent + MCP",
     desc: "An AI-powered GitHub assistant with MCP integration. Search repositories, browse issues, pull requests, and code — all through a DIDComm chatbot in Hologram Messaging.",
     icon: Github,
     color: "text-gray-800 bg-gray-100",
-    endpoint: "https://github-agent-vs.avatar.hologram.zone",
-    workflow: "3_deploy-github-agent-vs",
+    endpoint: "https://github-agent.vs.hologram.zone",
+    workflow: "3_deploy-github-agent",
   },
 ];
 
@@ -280,8 +280,8 @@ export default function PlaygroundPage() {
             <pre>{`hologram-avatar/
   common/             # Shared shell helpers
   organization-vs/    # Trust anchor (workflow 1)
-  issuer-chatbot-vs/  # Credential issuer chatbot (workflow 2)
-  github-agent-vs/    # GitHub AI agent with MCP (workflow 3)
+  avatar/             # Credential issuer chatbot (workflow 2)
+  github-agent/       # GitHub AI agent with MCP (workflow 3)
   playground/         # This landing page (workflow 6)`}</pre>
           </div>
           <div className="mt-4">

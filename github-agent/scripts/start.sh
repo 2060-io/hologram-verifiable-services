@@ -10,10 +10,10 @@
 #   - NGROK_DOMAIN set in environment
 #
 # Usage:
-#   source github-agent-vs/config.env
+#   source github-agent/config.env
 #   export NGROK_DOMAIN=your-domain.ngrok-free.app
 #   export OPENAI_API_KEY=sk-...
-#   ./github-agent-vs/scripts/start.sh
+#   ./github-agent/scripts/start.sh
 #
 # =============================================================================
 

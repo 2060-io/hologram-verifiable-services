@@ -8,8 +8,8 @@
 #   - config.env sourced
 #
 # Usage:
-#   source issuer-chatbot-vs/config.env
-#   ./issuer-chatbot-vs/scripts/start.sh
+#   source avatar/config.env
+#   ./avatar/scripts/start.sh
 #
 # =============================================================================
 

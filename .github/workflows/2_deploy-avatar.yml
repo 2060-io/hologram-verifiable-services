@@ -1,4 +1,4 @@
-name: 2_ Deploy Issuer Chatbot VS
+name: 2_ Deploy Avatar
 
 on:
   workflow_dispatch:
@@ -15,8 +15,8 @@ on:
         default: all
 
 jobs:
-  deploy-issuer-chatbot-vs:
-    name: Deploy Issuer Chatbot VS Agent and Chatbot
+  deploy-avatar:
+    name: Deploy Avatar VS Agent and Chatbot
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,20 +33,20 @@ jobs:
       - name: Load configuration
         run: |
           set -a
-          source issuer-chatbot-vs/config.env
+          source avatar/config.env
           set +a
           while IFS= read -r line; do
             key="${line%%=*}"
             echo "${key}=${!key}" >> "$GITHUB_ENV"
-          done < <(grep -E '^[A-Z_]+=' issuer-chatbot-vs/config.env)
+          done < <(grep -E '^[A-Z_]+=' avatar/config.env)
 
       - name: Parse deployment.yaml
         run: |
-          CHART_SOURCE=$(yq '.chartSource' issuer-chatbot-vs/deployment.yaml)
-          CHART_VERSION=$(yq '.chartVersion' issuer-chatbot-vs/deployment.yaml)
+          CHART_SOURCE=$(yq '.chartSource' avatar/deployment.yaml)
+          CHART_VERSION=$(yq '.chartVersion' avatar/deployment.yaml)
           CHART_NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
-          RELEASE_NAME=$(yq '.name' issuer-chatbot-vs/deployment.yaml)
-          INGRESS_HOST=$(yq '.ingress.host' issuer-chatbot-vs/deployment.yaml)
+          RELEASE_NAME=$(yq '.name' avatar/deployment.yaml)
+          INGRESS_HOST=$(yq '.ingress.host' avatar/deployment.yaml)
           echo "CHART_SOURCE=${CHART_SOURCE}" >> "$GITHUB_ENV"
           echo "CHART_VERSION=${CHART_VERSION}" >> "$GITHUB_ENV"
           echo "CHART_NAMESPACE=${CHART_NAMESPACE}" >> "$GITHUB_ENV"
@@ -88,7 +88,7 @@ jobs:
             VSAGENT_DB_PWD="$(openssl rand -hex 16)"
             echo "::warning::VSAGENT_DB_PASSWORD secret not set — using generated password"
           fi
-          kubectl create secret generic issuer-chatbot-vs-db-secret \
+          kubectl create secret generic avatar-db-secret \
             --namespace "$CHART_NAMESPACE" \
             --from-literal=POSTGRES_PASSWORD="$VSAGENT_DB_PWD" \
             --dry-run=client -o yaml | kubectl apply -f -
@@ -98,7 +98,7 @@ jobs:
         run: |
           APP_NAME="issuer-chatbot-app"
           CHATBOT_URL="http://${APP_NAME}:${CHATBOT_PORT:-4000}"
-          yq 'del(.chartSource, .chartVersion)' issuer-chatbot-vs/deployment.yaml > /tmp/helm-values.yaml
+          yq 'del(.chartSource, .chartVersion)' avatar/deployment.yaml > /tmp/helm-values.yaml
           yq -i '.didcommLabel = env(SERVICE_NAME)' /tmp/helm-values.yaml
           yq -i '.didcommInvitationImageUrl = env(SERVICE_LOGO_URL)' /tmp/helm-values.yaml
           export CHATBOT_URL
@@ -172,7 +172,7 @@ jobs:
           fi
 
           # Discover custom schema from organization-vs DID doc
-          ORG_PUBLIC_URL="https://organization-vs.avatar.hologram.zone"
+          ORG_PUBLIC_URL="https://organization-vs.vs.hologram.zone"
 
           ORG_DID_DOC=$(curl -sf "${ORG_PUBLIC_URL}/.well-known/did.json")
           CUSTOM_VP_URL=$(echo "$ORG_DID_DOC" | jq -r '
@@ -244,7 +244,7 @@ jobs:
         if: inputs.step == 'deploy-chatbot' || inputs.step == 'all'
         uses: docker/build-push-action@v6
         with:
-          context: ./issuer-chatbot-vs/issuer-chatbot
+          context: ./avatar/issuer-chatbot
           push: true
           tags: |
             io2060/avatar-issuer-chatbot:${{ github.sha }}
@@ -267,7 +267,7 @@ jobs:
           MINIO_ACCESS_KEY="${{ secrets.MINIO_ACCESS_KEY }}"
           MINIO_SECRET_KEY="${{ secrets.MINIO_SECRET_KEY }}"
           MINIO_BUCKET="avatar-previews"
-          MINIO_PUBLIC_HOST="media.issuer-chatbot-vs.avatar.hologram.zone"
+          MINIO_PUBLIC_HOST="media.avatar.vs.hologram.zone"
           if [ -z "$MINIO_ACCESS_KEY" ]; then
             MINIO_ACCESS_KEY="$(openssl rand -hex 12)"
             echo "::warning::MINIO_ACCESS_KEY secret not set — using generated key"
@@ -475,7 +475,7 @@ jobs:
                       - name: ORG_VS_ADMIN_URL
                         value: "http://organization-vs:3000"
                       - name: ORG_VS_PUBLIC_URL
-                        value: "https://organization-vs.avatar.hologram.zone"
+                        value: "https://organization-vs.vs.hologram.zone"
                       - name: CHATBOT_PORT
                         value: "${PORT}"
                       - name: DATABASE_URL
@@ -530,7 +530,7 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## Issuer Chatbot VS" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Avatar" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "${INGRESS_HOST:-}" ]; then
             echo "- **VS Agent:** https://${INGRESS_HOST}/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"

@@ -6,7 +6,7 @@ Demo ecosystem with five Verifiable Services deployed via GitHub Actions to Kube
 
 ```
 organization-vs          ← Parent organization (ECS credentials, Trust Registry, schema)
-├── issuer-chatbot-vs    ← Issues credentials via DIDComm chatbot
+├── avatar    ← Issues credentials via DIDComm chatbot
 ├── issuer-web-vs        ← Issues credentials via web form + QR code
 ├── verifier-chatbot-vs  ← Verifies credentials via DIDComm chatbot
 └── verifier-web-vs      ← Verifies credentials via web page + QR code
@@ -25,7 +25,7 @@ All services discover the **AnonCreds credential definition** by querying `/reso
 | Service | Role | App Port |
 |---------|------|----------|
 | `organization-vs` | Parent org | — |
-| `issuer-chatbot-vs` | Issuer (chatbot) | 4000 |
+| `avatar` | Issuer (chatbot) | 4000 |
 | `issuer-web-vs` | Issuer (web) | 4001 |
 | `verifier-chatbot-vs` | Verifier (chatbot) | 4002 |
 | `verifier-web-vs` | Verifier (web) | 4003 |
@@ -83,12 +83,12 @@ source organization-vs/config.env
 ./organization-vs/scripts/setup.sh
 ```
 
-### 2. Start a child service (e.g., issuer-chatbot-vs)
+### 2. Start a child service (e.g., avatar)
 
 ```bash
-source issuer-chatbot-vs/config.env
-./issuer-chatbot-vs/scripts/setup.sh
-./issuer-chatbot-vs/scripts/start.sh
+source avatar/config.env
+./avatar/scripts/setup.sh
+./avatar/scripts/start.sh
 ```
 
 > **Note:** Only one ngrok tunnel can run at a time on the free plan. For local development with multiple services, deploy organization-vs to K8s first, then point child services to its public URL via `ORG_VS_PUBLIC_URL` and `ORG_VS_ADMIN_URL`.

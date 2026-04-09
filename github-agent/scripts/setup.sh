@@ -15,8 +15,8 @@
 #   - Organization VS running (ORG_VS_ADMIN_URL reachable)
 #
 # Usage:
-#   source github-agent-vs/config.env
-#   ./github-agent-vs/scripts/setup.sh
+#   source github-agent/config.env
+#   ./github-agent/scripts/setup.sh
 #
 # =============================================================================
 
@@ -39,7 +39,7 @@ source "${REPO_ROOT}/common/common.sh"
 
 NETWORK="${NETWORK:-testnet}"
 VS_AGENT_IMAGE="${VS_AGENT_IMAGE:-veranalabs/vs-agent:latest}"
-VS_AGENT_CONTAINER_NAME="${VS_AGENT_CONTAINER_NAME:-github-agent-vs}"
+VS_AGENT_CONTAINER_NAME="${VS_AGENT_CONTAINER_NAME:-github-agent}"
 VS_AGENT_ADMIN_PORT="${VS_AGENT_ADMIN_PORT:-3010}"
 VS_AGENT_PUBLIC_PORT="${VS_AGENT_PUBLIC_PORT:-3011}"
 VS_AGENT_DATA_DIR="${VS_AGENT_DATA_DIR:-${SERVICE_DIR}/data}"
@@ -114,7 +114,7 @@ fi
 log "Starting ngrok tunnel on port ${VS_AGENT_PUBLIC_PORT}..."
 pkill -f "ngrok http ${VS_AGENT_PUBLIC_PORT}" 2>/dev/null || true
 sleep 1
-ngrok http "$VS_AGENT_PUBLIC_PORT" --log=stdout > /tmp/ngrok-github-agent-vs.log 2>&1 &
+ngrok http "$VS_AGENT_PUBLIC_PORT" --log=stdout > /tmp/ngrok-github-agent.log 2>&1 &
 NGROK_PID=$!
 sleep 5
 
@@ -245,7 +245,7 @@ echo ""
 echo "  Start the full stack with Docker Compose:"
 echo "    export NGROK_DOMAIN=${NGROK_DOMAIN}"
 echo "    export OPENAI_API_KEY=sk-..."
-echo "    docker compose -f github-agent-vs/docker/docker-compose.yml up"
+echo "    docker compose -f github-agent/docker/docker-compose.yml up"
 echo ""
 echo "  To stop:"
 echo "    docker stop $VS_AGENT_CONTAINER_NAME"
