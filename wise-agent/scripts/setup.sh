@@ -54,7 +54,7 @@ ORG_VS_PUBLIC_URL="${ORG_VS_PUBLIC_URL:-}"
 # Service details
 SERVICE_TYPE="${SERVICE_TYPE:-AIAgent}"
 SERVICE_DESCRIPTION="${SERVICE_DESCRIPTION:-AI agent for interacting with your Wise account}"
-SERVICE_LOGO_URL="${SERVICE_LOGO_URL:-https://wise.com/public-resources/assets/logos/wise/brand_logo.svg}"
+SERVICE_LOGO_URL="${SERVICE_LOGO_URL:-https://hologram.zone/images/wise.svg}"
 SERVICE_MIN_AGE="${SERVICE_MIN_AGE:-0}"
 SERVICE_TERMS="${SERVICE_TERMS:-https://hologram.zone/page/terms-of-service/}"
 SERVICE_PRIVACY="${SERVICE_PRIVACY:-https://hologram.zone/page/privacy-policy/}"

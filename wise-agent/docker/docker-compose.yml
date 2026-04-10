@@ -32,7 +32,7 @@ services:
     environment:
       - AGENT_PUBLIC_DID=did:webvh:${NGROK_DOMAIN}
       - AGENT_LABEL=${SERVICE_NAME:-Wise Agent}
-      - AGENT_INVITATION_IMAGE_URL=${SERVICE_LOGO_URL:-https://wise.com/public-resources/assets/logos/wise/brand_logo.svg}
+      - AGENT_INVITATION_IMAGE_URL=${SERVICE_LOGO_URL:-https://hologram.zone/images/wise.svg}
       - ENABLE_PUBLIC_API_SWAGGER=true
       - EVENTS_BASE_URL=http://chatbot:${CHATBOT_PORT:-3003}
       - REDIS_HOST=redis
