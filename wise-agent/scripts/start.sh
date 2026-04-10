@@ -31,6 +31,7 @@ echo " Wise Agent VS — Local Start"
 echo "============================================="
 echo "  VS Agent image  : ${VS_AGENT_IMAGE}"
 echo "  Chatbot image   : ${CHATBOT_IMAGE}"
+echo "  MCP Wise image  : ${MCP_WISE_IMAGE}"
 echo "  Chatbot port    : ${CHATBOT_PORT}"
 echo "  Service name    : ${SERVICE_NAME}"
 echo "  NGROK_DOMAIN    : ${NGROK_DOMAIN:-<not set>}"
@@ -38,6 +39,10 @@ echo ""
 
 if [ -z "${OPENAI_API_KEY:-}" ]; then
   echo "WARNING: OPENAI_API_KEY is not set. The chatbot LLM will not work."
+fi
+
+if [ -z "${WISE_API_TOKEN:-}" ]; then
+  echo "WARNING: WISE_API_TOKEN is not set. The MCP Wise server will not work."
 fi
 
 if [ -z "${NGROK_DOMAIN:-}" ]; then

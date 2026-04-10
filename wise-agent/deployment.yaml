@@ -107,6 +107,8 @@ chatbot:
       value: 'wise-agent-chart-postgres.{{ .Release.Namespace }}'
     - name: CREDENTIAL_DEFINITION_ID
       value: '{{ .Values.credentialDefinitionId | default "" }}'
+    - name: WISE_MCP_URL
+      value: 'http://wise-agent-mcp-wise.{{ .Release.Namespace }}:14101/mcp/'
   agentPack:
     enabled: true
     name: wise-agent

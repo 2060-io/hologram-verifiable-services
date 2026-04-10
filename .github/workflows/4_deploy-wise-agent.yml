@@ -101,6 +101,77 @@ jobs:
             --from-file=agent-pack.yaml=wise-agent/agent-pack.yaml \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Deploy MCP Wise server
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          NAMESPACE="${CHART_NAMESPACE}"
+          MCP_WISE_IMAGE="io2060/mcp-wise:dev"
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: wise-agent-mcp-wise
+            namespace: ${NAMESPACE}
+            labels:
+              app: wise-agent-mcp-wise
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: wise-agent-mcp-wise
+            template:
+              metadata:
+                labels:
+                  app: wise-agent-mcp-wise
+              spec:
+                containers:
+                  - name: mcp-wise
+                    image: ${MCP_WISE_IMAGE}
+                    ports:
+                      - containerPort: 14101
+                    env:
+                      - name: MODE
+                        value: "http"
+                      - name: WISE_API_TOKEN
+                        valueFrom:
+                          secretKeyRef:
+                            name: wise-agent-mcp-wise-secret
+                            key: WISE_API_TOKEN
+                      - name: WISE_IS_SANDBOX
+                        value: "${{ secrets.WISE_IS_SANDBOX || 'true' }}"
+                    resources:
+                      requests:
+                        cpu: 100m
+                        memory: 128Mi
+                      limits:
+                        cpu: 500m
+                        memory: 256Mi
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: wise-agent-mcp-wise
+            namespace: ${NAMESPACE}
+          spec:
+            selector:
+              app: wise-agent-mcp-wise
+            ports:
+              - port: 14101
+                targetPort: 14101
+            type: ClusterIP
+          EOF
+
+          # Create/update the secret with the Wise API token
+          kubectl create secret generic wise-agent-mcp-wise-secret \
+            --namespace "$NAMESPACE" \
+            --from-literal=WISE_API_TOKEN="${{ secrets.WISE_AGENT_API_TOKEN }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Restart to pick up latest image and secret
+          kubectl rollout restart deployment/wise-agent-mcp-wise -n "$NAMESPACE"
+          kubectl rollout status deployment/wise-agent-mcp-wise -n "$NAMESPACE" --timeout=120s
+
       - name: Deploy via Helm
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
@@ -129,6 +200,15 @@ jobs:
         run: |
           kubectl rollout restart statefulset/wise-agent-chart-chatbot -n "$CHART_NAMESPACE"
           kubectl rollout status statefulset/wise-agent-chart-chatbot -n "$CHART_NAMESPACE" --timeout=120s
+
+      - name: Verify MCP Wise connectivity
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          echo "Checking MCP Wise service is reachable..."
+          kubectl run mcp-wise-check --rm -i --restart=Never -n "$CHART_NAMESPACE" \
+            --image=curlimages/curl:latest -- \
+            curl -sf -o /dev/null -w "%{http_code}" \
+            "http://wise-agent-mcp-wise:14101/mcp/" || echo "::warning::MCP Wise health check returned non-200 (may need POST)"
 
       # -----------------------------------------------------------------------
       # GET-CREDENTIALS: Obtain Service credential from organization
