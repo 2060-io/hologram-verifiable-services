@@ -141,7 +141,7 @@ vs-agent-chart:
   enabled: true
   name: wise-agent
   didcommLabel: 'Wise Agent'
-  didcommInvitationImageUrl: 'https://wise.com/public-resources/assets/logos/wise/brand_logo.svg'
+  didcommInvitationImageUrl: 'https://hologram.zone/images/wise.svg'
   eventsBaseUrl: http://wise-agent-chart-chatbot:3003
   ingress:
     host: "wise-agent.{{ .Values.global.domain }}"
