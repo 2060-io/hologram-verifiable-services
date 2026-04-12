@@ -1,0 +1,80 @@
+# =============================================================================
+# Passport Issuer VS — Local Docker Compose
+# =============================================================================
+#
+# Runs the VS Agent + Gov ID Issuer App for local development/testing.
+#
+# Prerequisites:
+#   - Docker and Docker Compose installed
+#   - ngrok running on port 3005
+#
+# Usage:
+#   source passport/config.env
+#   export NGROK_DOMAIN=your-domain.ngrok-free.app
+#   docker compose up
+#
+# =============================================================================
+
+services:
+  vs-agent:
+    image: ${VS_AGENT_IMAGE:-veranalabs/vs-agent:latest}
+    platform: linux/amd64
+    ports:
+      - "${VS_AGENT_ADMIN_PORT:-3004}:3000"
+      - "${VS_AGENT_PUBLIC_PORT:-3005}:3001"
+    environment:
+      - AGENT_PUBLIC_DID=did:webvh:${NGROK_DOMAIN}
+      - AGENT_LABEL=${SERVICE_NAME:-Passport Issuer}
+      - ENABLE_PUBLIC_API_SWAGGER=true
+      - EVENTS_BASE_URL=http://passport-issuer:${CHATBOT_PORT:-2903}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=vsagent
+      - POSTGRES_PASSWORD=vsagent
+      - REDIS_HOST=redis
+    volumes:
+      - vs-agent-data:/root/.afj
+    depends_on:
+      - postgres
+      - redis
+
+  passport-issuer:
+    image: ${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.2}
+    platform: linux/amd64
+    ports:
+      - "${CHATBOT_PORT:-2903}:${CHATBOT_PORT:-2903}"
+    environment:
+      - AGENT_PORT=${CHATBOT_PORT:-2903}
+      - SERVICE_AGENT_ADMIN_URL=http://vs-agent:3000
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=passport
+      - POSTGRES_PASSWORD=passport
+      - VISION_URL=${VISION_URL:-https://vision.demos.dev.2060.io}
+      - WEBRTC_SERVER_URL=${WEBRTC_SERVER_URL:-https://webrtc.demos.dev.2060.io}
+      - PUBLIC_BASE_URL=https://${NGROK_DOMAIN}
+      - ID_VERIFICATION_TIMEOUT_SECONDS=${ID_VERIFICATION_TIMEOUT_SECONDS:-900}
+      - LOG_LEVEL=${LOG_LEVEL:-3}
+    depends_on:
+      - vs-agent
+      - postgres
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=passport
+      - POSTGRES_USER=passport
+      - POSTGRES_DB=passport
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+
+volumes:
+  vs-agent-data:
+  postgres-data:
