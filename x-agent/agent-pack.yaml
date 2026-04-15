@@ -128,7 +128,7 @@ flows:
         visibleWhen: authenticated
 
 speechToText:
-  requireAuth: false
+  requireAuth: true
   provider:
     name: whisper
     type: openai-whisper
