@@ -87,6 +87,7 @@ services:
       - CREDENTIAL_DEFINITION_ID=${CREDENTIAL_DEFINITION_ID}
       - GITHUB_MCP_URL=${GITHUB_MCP_URL:-https://api.githubcopilot.com/mcp/}
       - MCP_CONFIG_ENCRYPTION_KEY=${MCP_CONFIG_ENCRYPTION_KEY:-}
+      - AGENT_PACK_PATH=/app/agent-packs/github-agent
     volumes:
       - chatbot-data:/app/data
       - ../agent-pack.yaml:/app/agent-packs/github-agent/agent-pack.yaml:ro

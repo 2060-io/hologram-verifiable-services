@@ -97,6 +97,7 @@ services:
       - POSTGRES_DB_NAME=${POSTGRES_DB:-wise-agent}
       - CREDENTIAL_DEFINITION_ID=${CREDENTIAL_DEFINITION_ID}
       - WISE_MCP_URL=http://mcp-wise:14101/mcp/
+      - AGENT_PACK_PATH=/app/agent-packs/wise-agent
     volumes:
       - chatbot-data:/app/data
       - ../agent-pack.yaml:/app/agent-packs/wise-agent/agent-pack.yaml:ro
