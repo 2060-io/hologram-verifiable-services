@@ -23,9 +23,9 @@ resources:
     cpu: 500m
     memory: 512Mi
 
-# Pin the vs-agent app image (defaults to chartVersion when tag is empty)
+# vs-agent app image tag (defaults to chartVersion when tag is empty)
 image:
-  tag: v1.12.0-dev.19
+  tag: latest
 
 ingress:
   host: "organization.vs.hologram.zone"

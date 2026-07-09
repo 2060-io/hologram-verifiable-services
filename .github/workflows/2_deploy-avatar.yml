@@ -67,9 +67,14 @@ jobs:
 
       - name: Install veranad
         run: |
-          VERANAD_VERSION="v0.9.4"
-          curl -sfL "https://github.com/verana-labs/verana/releases/download/${VERANAD_VERSION}/veranad-linux-amd64" \
+          VERANAD_VERSION="v0.9.5"
+          curl -sfL "https://github.com/verana-labs/verana-node/releases/download/${VERANAD_VERSION}/veranad-linux-amd64" \
             -o /usr/local/bin/veranad
+          # Fail loudly if GitHub served an HTML error page instead of the binary
+          if ! file /usr/local/bin/veranad | grep -q ELF; then
+            echo "::error::veranad download is not an ELF binary — check release URL/version (${VERANAD_VERSION})"
+            exit 1
+          fi
           chmod +x /usr/local/bin/veranad
           veranad version
 
