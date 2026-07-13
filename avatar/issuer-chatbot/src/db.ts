@@ -270,9 +270,28 @@ export class Db {
   }
 
   // Password
+  //
+  // Stored as `scrypt$N$r$p$<salt-b64>$<hash-b64>`. Rows written by older
+  // versions hold unsalted SHA-256 hex; they still verify and are upgraded
+  // to scrypt on the first successful verification.
+
+  private static readonly SCRYPT_N = 16384;
+  private static readonly SCRYPT_R = 8;
+  private static readonly SCRYPT_P = 1;
+  private static readonly SCRYPT_KEYLEN = 32;
+
+  private scrypt(password: string, salt: Buffer, N: number, r: number, p: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      crypto.scrypt(password, salt, Db.SCRYPT_KEYLEN, { N, r, p }, (err, key) =>
+        err ? reject(err) : resolve(key)
+      );
+    });
+  }
 
   async setPassword(connectionId: string, plainPassword: string): Promise<void> {
-    const hash = crypto.createHash("sha256").update(plainPassword).digest("hex");
+    const salt = crypto.randomBytes(16);
+    const key = await this.scrypt(plainPassword, salt, Db.SCRYPT_N, Db.SCRYPT_R, Db.SCRYPT_P);
+    const hash = `scrypt$${Db.SCRYPT_N}$${Db.SCRYPT_R}$${Db.SCRYPT_P}$${salt.toString("base64")}$${key.toString("base64")}`;
     await this.backend.run(
       `UPDATE accounts SET "passwordHash" = ${this.p(1)}, "updatedAt" = ${this.now()} WHERE "connectionId" = ${this.p(2)}`,
       [hash, connectionId]
@@ -282,8 +301,29 @@ export class Db {
   async verifyPassword(connectionId: string, plainPassword: string): Promise<boolean> {
     const account = await this.getAccount(connectionId);
     if (!account?.passwordHash) return false;
-    const hash = crypto.createHash("sha256").update(plainPassword).digest("hex");
-    return account.passwordHash === hash;
+    const stored = account.passwordHash;
+
+    if (stored.startsWith("scrypt$")) {
+      const [, N, r, p, saltB64, hashB64] = stored.split("$");
+      const expected = Buffer.from(hashB64, "base64");
+      const actual = await this.scrypt(
+        plainPassword,
+        Buffer.from(saltB64, "base64"),
+        Number(N),
+        Number(r),
+        Number(p)
+      );
+      return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+    }
+
+    const legacy = crypto.createHash("sha256").update(plainPassword).digest("hex");
+    const storedBuf = Buffer.from(stored, "hex");
+    const legacyBuf = Buffer.from(legacy, "hex");
+    const matches = storedBuf.length === legacyBuf.length && crypto.timingSafeEqual(storedBuf, legacyBuf);
+    if (matches) {
+      await this.setPassword(connectionId, plainPassword);
+    }
+    return matches;
   }
 
   // Authenticator
@@ -316,6 +356,14 @@ export class Db {
       `SELECT * FROM avatars WHERE "accountConnectionId" = ${this.p(1)} ORDER BY name`,
       [connectionId]
     );
+  }
+
+  async hasAvatars(connectionId: string): Promise<boolean> {
+    const row = await this.backend.get<{ n: number }>(
+      `SELECT 1 AS n FROM avatars WHERE "accountConnectionId" = ${this.p(1)} LIMIT 1`,
+      [connectionId]
+    );
+    return row !== undefined;
   }
 
   async createAvatar(name: string, connectionId: string): Promise<void> {

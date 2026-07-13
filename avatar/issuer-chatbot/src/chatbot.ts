@@ -74,6 +74,8 @@ export class Chatbot {
     const commandMap: Record<string, string> = {
       new_avatar: "/new",
       list: "/list",
+      reissue: "/issue",
+      delete_avatar: "/delete",
       restore: "/restore",
       auth: "/auth",
       setup: "/setup",
@@ -202,8 +204,17 @@ export class Chatbot {
     if (name) {
       return this.doIssue(connectionId, name);
     }
+    const avatars = await this.db.listAvatars(connectionId);
+    if (avatars.length === 0) {
+      return this.send(connectionId, "You have no avatars yet. Use /new to create one.");
+    }
     this.store.setFlow(connectionId, FlowType.ISSUE, FlowStep.ISSUE_AWAIT_NAME);
-    await this.send(connectionId, "Enter the name of the avatar to reissue:");
+    await this.client.sendQuestionMessage(
+      connectionId,
+      "Which avatar do you want to reissue the credential for?",
+      avatars.map((a) => ({ id: a.name, title: a.name })),
+      await this.buildMenu(connectionId)
+    );
   }
 
   private async cmdRestore(connectionId: string): Promise<void> {
@@ -840,6 +851,7 @@ export class Chatbot {
 
     const authenticated = await this.db.isAuthenticated(connectionId);
     const hasAuth = await this.db.hasAuthMethods(connectionId);
+    const hasAvatars = await this.db.hasAvatars(connectionId);
 
     const options: ContextualMenuEntry[] = [];
 
@@ -855,6 +867,11 @@ export class Chatbot {
     options.push({ id: "new_avatar", title: "New Avatar" });
     options.push({ id: "restore", title: "Restore Avatar(s)" });
     options.push({ id: "list", title: "List Avatars" });
+
+    if (hasAvatars) {
+      options.push({ id: "reissue", title: "Reissue Credential" });
+      options.push({ id: "delete_avatar", title: "Delete Avatar" });
+    }
 
     if (authenticated) {
       options.push({ id: "password", title: "Password Setup" });
