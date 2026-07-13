@@ -7,15 +7,16 @@ A collection of Verifiable Services (VS) deployed via GitHub Actions to Kubernet
 ## Architecture
 
 ```
-organization   ← Trust anchor (ECS credentials, Trust Registry, schema)
+organization   ← Trust anchor (ECS credentials, Trust Registry, schemas)
 ├── avatar        ← Issues credentials via DIDComm chatbot
 ├── passport      ← Passport credential issuer (NFC + liveness)
 ├── github-agent  ← AI-powered GitHub assistant with MCP integration
 ├── wise-agent    ← AI-powered Wise assistant with MCP integration
+├── x-agent       ← AI-powered X (Twitter) agent with MCP integration
 └── playground    ← Landing page (vs.hologram.zone)
 ```
 
-**organization** is the trust anchor: it obtains Organization + Service credentials from the ECS Trust Registry, creates its own Trust Registry with a custom schema, and registers an AnonCreds credential definition.
+**organization** is the trust anchor: it obtains Organization + Service credentials from the ECS Trust Registry, creates its own Trust Registry with the avatar and passport schemas, and publishes the matching JSON Schema credentials (each issuer creates its own AnonCreds credential definition).
 
 Child services obtain a **Service credential** from organization, making their identity and permissions publicly verifiable on the Verana blockchain.
 
@@ -28,6 +29,7 @@ Child services obtain a **Service credential** from organization, making their i
 | `passport` | Credential issuer (NFC + liveness) | `passport.vs.hologram.zone` | `vs-agent-chart` |
 | `github-agent` | AI agent + MCP | `github-agent.vs.hologram.zone` | `hologram-ai-agent-chart` |
 | `wise-agent` | AI agent + MCP | `wise-agent.vs.hologram.zone` | `hologram-ai-agent-chart` |
+| `x-agent` | AI agent + MCP (X/Twitter) | `x-agent.vs.hologram.zone` | `hologram-ai-agent-chart` |
 | `playground` | Landing page | `vs.hologram.zone` | — (raw K8s) |
 
 ## Directory Structure
@@ -41,6 +43,7 @@ hologram-verifiable-services/
   wise-agent/           # Wise AI agent with MCP (workflow 4)
   passport/             # Passport credential issuer (workflow 5)
   playground/           # Landing page (workflow 6)
+  x-agent/              # X (Twitter) AI agent with MCP (workflow 7)
 ```
 
 Each service directory follows the same structure:
@@ -49,7 +52,7 @@ Each service directory follows the same structure:
 <service>/
   config.env            # Configuration for local dev and CI/CD
   deployment.yaml       # Helm chart values for K8s deployment
-  agent-pack.yaml       # Agent pack definition (github-agent, wise-agent)
+  agent-pack.yaml       # Agent pack definition (github-agent, wise-agent, x-agent)
   scripts/
     setup.sh            # Full local setup (deploy agent, get credentials)
     start.sh            # Start the service locally
@@ -68,7 +71,10 @@ Workflows are numbered to indicate deployment order. **Run them in order** when 
 | 3 | Deploy GitHub Agent | `deploy` · `get-credentials` · `all` |
 | 4 | Deploy Wise Agent | `deploy` · `get-credentials` · `all` |
 | 5 | Deploy Passport | `deploy` · `get-credentials` · `deploy-chatbot` · `all` |
-| 6 | Deploy Playground | — (triggered on push to main) |
+| 6 | Deploy Playground | — (single step, manual dispatch) |
+| 7 | Deploy X Agent | `deploy` · `get-credentials` · `all` |
+
+In addition, `ci.yml` builds and tests the avatar issuer-chatbot on every pull request.
 
 ### Deployment
 
@@ -84,6 +90,9 @@ All services are deployed under the `vs.hologram.zone` domain:
 - `passport.vs.hologram.zone` — Passport Issuer VS Agent + Chatbot
 - `github-agent.vs.hologram.zone` — GitHub Agent VS Agent + Chatbot
 - `wise-agent.vs.hologram.zone` — Wise Agent VS Agent + Chatbot
+- `x-agent.vs.hologram.zone` — X Agent VS Agent + Chatbot
+- `media.avatar.vs.hologram.zone` — Avatar image previews (MinIO)
+- `media.x-agent.vs.hologram.zone` — X Agent generated media (MinIO)
 - `vs.hologram.zone` — Playground landing page
 
 ## Local Development
@@ -135,6 +144,15 @@ source wise-agent/config.env
 export OPENAI_API_KEY=sk-...
 ./wise-agent/scripts/setup.sh
 ./wise-agent/scripts/start.sh
+```
+
+**X Agent (AI agent):**
+
+```bash
+source x-agent/config.env
+export OPENAI_API_KEY=sk-...
+./x-agent/scripts/setup.sh
+./x-agent/scripts/start.sh
 ```
 
 > **Note:** Only one ngrok tunnel can run at a time on the free plan. For local development with multiple services, deploy organization to K8s first, then point child services to its public URL via `ORG_VS_PUBLIC_URL` and `ORG_VS_ADMIN_URL`.
