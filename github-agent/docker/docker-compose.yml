@@ -62,7 +62,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
 
   chatbot:
-    image: ${CHATBOT_IMAGE:-io2060/hologram-ai-agent:v1.13.1}
+    image: ${CHATBOT_IMAGE:-io2060/hologram-ai-agent:v1.14.0-dev.1}
     platform: linux/amd64
     ports:
       - "${CHATBOT_PORT:-3003}:${CHATBOT_PORT:-3003}"
