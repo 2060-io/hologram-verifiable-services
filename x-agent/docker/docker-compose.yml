@@ -107,7 +107,8 @@ services:
       - APP_PORT=${CHATBOT_PORT:-3003}
       - LOG_LEVEL=3
       - LLM_PROVIDER=${LLM_PROVIDER:-openai}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.4-mini}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.6-terra}
+      - OPENAI_REASONING_EFFORT=${OPENAI_REASONING_EFFORT:-medium}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - VECTOR_STORE=redis
       - VECTOR_INDEX_NAME=x_agent
