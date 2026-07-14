@@ -74,7 +74,8 @@ languages:
 
 llm:
   provider: openai
-  model: gpt-5.4-mini
+  model: gpt-5.6-terra
+  reasoningEffort: medium
   temperature: 0.7
   agentPrompt: >-
     "You are an X (Twitter) social media assistant agent.\n\
@@ -273,15 +274,15 @@ flows:
 speechToText:
   requireAuth: true
   provider:
-    name: whisper
+    name: openai-audio
     type: openai-whisper
-    model: whisper-1
+    model: gpt-audio-1.5
 
 imageGeneration:
   providers:
-    - name: dalle
-      type: openai-dalle
-      model: dall-e-3
+    - name: gpt-image
+      type: openai-gpt-image
+      model: gpt-image-2
       # Uses OPENAI_API_KEY by default; set apiKeyEnv to override
       defaultSize: 1024x1024
 
