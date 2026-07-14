@@ -1,30 +1,30 @@
-# Issuer Chatbot Service
+# Avatar Issuer Chatbot
 
-A conversational chatbot (via Hologram Messaging) that connects to the Issuer VS-Agent and issues credentials based on the custom schema.
+A conversational chatbot (via Hologram Messaging) that issues **Avatar credentials**: users pick a unique avatar name (`@name`), optionally attach an avatar image, and receive a verifiable credential. Avatars can be protected with a password or an authenticator app (TOTP) and restored from a new connection.
+
+See [`../spec.md`](../spec.md) for the full behavioral spec.
 
 ## How it works
 
-1. A user connects via Hologram Messaging
-2. The chatbot reads the schema attributes from the VS-Agent
-3. It prompts the user for each attribute one by one
-4. Once all attributes are collected, it issues an AnonCreds credential via the VS-Agent
-5. The credential is delivered to the user's wallet
+1. A user connects via Hologram Messaging (invitation/QR from the Avatar VS Agent)
+2. First-time users are offered `Restore Avatar(s)` or `New Account` (authentication setup)
+3. `/new` flow: choose a unique `@name` → optionally send an image (center-cropped, resized to at most 512×512, previewed through a MinIO presigned URL) → confirm → the Avatar credential is issued over DIDComm
+4. The contextual menu adapts to state: `Reissue Credential` and `Delete Avatar` appear once the connection owns at least one avatar; `Password Setup` / `Authenticator Setup` appear when authenticated
+5. `/restore` moves all avatars of an account to a new connectionId after a password or OTP challenge
 
 ## Prerequisites
 
-- Issuer VS-Agent running and configured (with ECS credentials and Trust Registry)
-- `ENABLE_ANONCREDS=true` in `vs/config.env`
-- Node.js 20+
+- Avatar VS Agent running and configured (see `avatar/scripts/setup.sh`)
+- MinIO for image previews (started by `avatar/docker/docker-compose.yml`)
+- Node.js 22+
 
 ## Local Usage
 
 ```bash
 # Source configuration
-source vs/config.env
-source vs/issuer-chatbot.env
+source avatar/config.env
 
-# Install dependencies
-cd issuer-chatbot
+cd avatar/issuer-chatbot
 npm install
 
 # Run in development mode
@@ -33,25 +33,36 @@ npm run dev
 # Or build and run
 npm run build
 npm start
+
+# Unit tests (node:test via tsx)
+npm test
 ```
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VS_AGENT_ADMIN_URL` | `http://localhost:3000` | Issuer VS-Agent admin API URL |
+| `VS_AGENT_ADMIN_URL` | `http://localhost:3000` | Avatar VS Agent admin API URL |
+| `ORG_VS_ADMIN_URL` | value of `VS_AGENT_ADMIN_URL` | Organization VS Agent admin API (schema discovery fallback) |
+| `ORG_VS_PUBLIC_URL` | — | Organization public URL (schema discovery via DID document) |
 | `CHATBOT_PORT` | `4000` | Webhook server port |
-| `DATABASE_URL` | `sqlite:./data/sessions.db` | Session persistence |
-| `SERVICE_NAME` | `Example Verana Service` | Contextual menu title |
-| `ENABLE_ANONCREDS` | `true` | Use AnonCreds format |
-| `CUSTOM_SCHEMA_BASE_ID` | `example` | Schema base ID to discover |
+| `DATABASE_URL` | `sqlite:./data/sessions.db` | Accounts + avatars persistence (`sqlite:<path>` or `postgresql://…`) |
+| `SERVICE_NAME` | `Example Verana Service` | Service display name |
+| `ENABLE_ANONCREDS` | `true` | Use AnonCreds credential format |
 | `LOG_LEVEL` | `info` | Logging level |
+| `MINIO_ENDPOINT` | `localhost` | MinIO host |
+| `MINIO_PORT` | `9000` | MinIO port |
+| `MINIO_ACCESS_KEY` | `minioadmin` | MinIO access key |
+| `MINIO_SECRET_KEY` | `minioadmin` | MinIO secret key |
+| `MINIO_BUCKET` | `avatar-previews` | Bucket for processed image previews (24h lifecycle) |
+| `MINIO_USE_SSL` | `false` | Use TLS for the internal MinIO connection |
+| `MINIO_PUBLIC_URL` | `http://localhost:9000` | Public base URL used in presigned preview URLs |
 
 ## Docker
 
 ```bash
-docker build -t issuer-chatbot .
+docker build -t avatar-issuer-chatbot .
 docker run -p 4000:4000 \
   -e VS_AGENT_ADMIN_URL=http://host.docker.internal:3000 \
-  issuer-chatbot
+  avatar-issuer-chatbot
 ```

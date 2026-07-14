@@ -40,7 +40,7 @@ Here are the possible commands / flow and their behavior:
      - **Select `Skip`**: Issue the credential with the `avatar` attribute set to `""` (empty string).
   4. **Persist and issue**: Persist the avatar in db, associate to the account with this connectionId and if no error, issue the credential.
 /delete: flow - delete an avatar with its name. User executing this action must do it through the connectionId (account) currently associated to the avatar (owner of the avatar), else abort.
-/issue <name>: reissue credential of a given avatar. <name> must be an avatar controlled by this connectionId. Since the avatar image is not persisted in the database, the flow re-prompts for an avatar image (same as `/new` step 3: request image, process, confirm, or skip). The credential is then reissued with the new image or `""` if skipped.
+/issue <name>: reissue credential of a given avatar. <name> must be an avatar controlled by this connectionId. When invoked without a name (e.g. from the contextual menu), the chatbot sends a `menu-display` question listing the caller's avatars to pick from (a typed avatar name is also accepted); if the caller owns no avatars, it explains that `/new` must be used first. Since the avatar image is not persisted in the database, the flow re-prompts for an avatar image (same as `/new` step 3: request image, process, confirm, or skip). The credential is then reissued with the new image or `""` if skipped.
 /restore: flow - used to restore user avatars. Flow requests an avatar name, and then propose to the user enabled recovery methods by sending a question message. If no recovery method is available, send a message explaining recovery is not possible. User chooses one of the available recovery method and user is challenged. If he/she passes the challenge, then all avatars linked to the old account entry (of the old connectionId) are updated for the new (current) account entry of the connected user, and the list of avatars (like with /list) is returned. Else, show an error message.
 /auth: flow - authenticate. Send a menu message to user with enabled authentication methods. User authenticate with one of the methods. When user is authenticated, he/she can change it password with /password or reconfigure the authenticator with /authenticator. Persist authentication timestamp (general) and individually (password and authenticator). No auth timeout.
 /password: flow - setup or change password. If a password and/or an authenticator configuration already exists for this connectionId, user must authenticated first (see /auth). After this step, request password, confirmation, and if match, save it to the account table.
@@ -58,6 +58,8 @@ Here are the possible commands / flow and their behavior:
   - New Avatar => /new
   - Restore Avatar(s) => /restore
   - List Avatars => /list
+  - Reissue Credential (only if this connectionId owns at least one avatar) => /issue
+  - Delete Avatar (only if this connectionId owns at least one avatar) => /delete
   - Password Setup (only if user is authenticated) => /password
   - Authenticator Setup (only if user is authenticated) => /authenticator
 

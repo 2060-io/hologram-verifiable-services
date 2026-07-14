@@ -54,7 +54,7 @@ ORG_VS_PUBLIC_URL="${ORG_VS_PUBLIC_URL:-}"
 # Service details
 SERVICE_TYPE="${SERVICE_TYPE:-AIAgent}"
 SERVICE_DESCRIPTION="${SERVICE_DESCRIPTION:-AI agent for publishing and managing posts on X (Twitter)}"
-SERVICE_LOGO_URL="${SERVICE_LOGO_URL:-https://hologram.zone/images/x.svg}"
+SERVICE_LOGO_URL="${SERVICE_LOGO_URL:-https://hologram.zone/images/x-white.svg}"
 SERVICE_MIN_AGE="${SERVICE_MIN_AGE:-0}"
 SERVICE_TERMS="${SERVICE_TERMS:-https://hologram.zone/page/terms-of-service/}"
 SERVICE_PRIVACY="${SERVICE_PRIVACY:-https://hologram.zone/page/privacy-policy/}"
