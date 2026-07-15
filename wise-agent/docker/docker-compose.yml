@@ -24,7 +24,7 @@
 
 services:
   vs-agent:
-    image: ${VS_AGENT_IMAGE:-veranalabs/vs-agent:latest}
+    image: ${VS_AGENT_IMAGE:-veranalabs/vs-agent:v1.11.1-dev.2}
     platform: linux/amd64
     ports:
       - "${VS_AGENT_ADMIN_PORT:-3010}:3000"
@@ -73,7 +73,7 @@ services:
       - MODE=http
 
   chatbot:
-    image: ${CHATBOT_IMAGE:-io2060/hologram-ai-agent:v1.14.0-dev.1}
+    image: ${CHATBOT_IMAGE:-io2060/hologram-ai-agent:v1.14.0}
     platform: linux/amd64
     ports:
       - "${CHATBOT_PORT:-3003}:${CHATBOT_PORT:-3003}"

@@ -2,7 +2,7 @@
 #
 # Hardcoded for hologram-verifiable-services testnet deployment on vs.hologram.zone
 chartSource: oci://registry-1.docker.io/veranalabs/vs-agent-chart
-chartVersion: v1.11.0
+chartVersion: v1.11.1-dev.2
 
 global:
   domain: vs.hologram.zone

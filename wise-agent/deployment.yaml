@@ -8,7 +8,7 @@
 #
 # Deployment target: vs.hologram.zone
 chartSource: oci://registry-1.docker.io/io2060/hologram-ai-agent-chart
-chartVersion: v1.14.0-dev.1
+chartVersion: v1.14.0
 
 global:
   domain: vs.hologram.zone
@@ -139,6 +139,8 @@ artemis:
 # === VS Agent ===
 vs-agent-chart:
   enabled: true
+  image:
+    tag: v1.11.1-dev.2
   name: wise-agent
   didcommLabel: 'Wise Agent'
   didcommInvitationImageUrl: 'https://hologram.zone/images/wise.svg'
