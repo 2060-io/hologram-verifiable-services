@@ -17,7 +17,7 @@
 
 services:
   vs-agent:
-    image: ${VS_AGENT_IMAGE:-veranalabs/vs-agent:latest}
+    image: ${VS_AGENT_IMAGE:-veranalabs/vs-agent:v1.11.1}
     platform: linux/amd64
     ports:
       - "${VS_AGENT_ADMIN_PORT:-3002}:3000"

@@ -40,7 +40,7 @@ source "${REPO_ROOT}/common/common.sh"
 # ---------------------------------------------------------------------------
 
 NETWORK="${NETWORK:-testnet}"
-VS_AGENT_IMAGE="${VS_AGENT_IMAGE:-veranalabs/vs-agent:latest}"
+VS_AGENT_IMAGE="${VS_AGENT_IMAGE:-veranalabs/vs-agent-mrtd:v1.11.1}"
 VS_AGENT_CONTAINER_NAME="${VS_AGENT_CONTAINER_NAME:-passport}"
 VS_AGENT_ADMIN_PORT="${VS_AGENT_ADMIN_PORT:-3004}"
 VS_AGENT_PUBLIC_PORT="${VS_AGENT_PUBLIC_PORT:-3005}"
