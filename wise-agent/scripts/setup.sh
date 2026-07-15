@@ -38,7 +38,7 @@ source "${REPO_ROOT}/common/common.sh"
 # ---------------------------------------------------------------------------
 
 NETWORK="${NETWORK:-testnet}"
-VS_AGENT_IMAGE="${VS_AGENT_IMAGE:-veranalabs/vs-agent:v1.11.1-dev.2}"
+VS_AGENT_IMAGE="${VS_AGENT_IMAGE:-veranalabs/vs-agent:v1.11.1}"
 VS_AGENT_CONTAINER_NAME="${VS_AGENT_CONTAINER_NAME:-wise-agent}"
 VS_AGENT_ADMIN_PORT="${VS_AGENT_ADMIN_PORT:-3020}"
 VS_AGENT_PUBLIC_PORT="${VS_AGENT_PUBLIC_PORT:-3021}"

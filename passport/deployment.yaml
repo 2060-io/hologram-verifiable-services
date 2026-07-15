@@ -2,7 +2,7 @@
 #
 # Hardcoded for hologram-verifiable-services testnet deployment on vs.hologram.zone
 chartSource: oci://registry-1.docker.io/veranalabs/vs-agent-chart
-chartVersion: v1.11.1-dev.2
+chartVersion: v1.11.1
 
 global:
   domain: vs.hologram.zone
@@ -22,6 +22,11 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+# vs-agent app image (passport uses the eMRTD variant)
+image:
+  repository: veranalabs/vs-agent-mrtd
+  tag: v1.11.1
 
 ingress:
   host: "passport.vs.hologram.zone"

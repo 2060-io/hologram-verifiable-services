@@ -140,7 +140,7 @@ artemis:
 vs-agent-chart:
   enabled: true
   image:
-    tag: v1.11.1-dev.2
+    tag: v1.11.1
   name: wise-agent
   didcommLabel: 'Wise Agent'
   didcommInvitationImageUrl: 'https://hologram.zone/images/wise.svg'
