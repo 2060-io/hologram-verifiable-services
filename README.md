@@ -155,6 +155,8 @@ export OPENAI_API_KEY=sk-...
 ./x-agent/scripts/start.sh
 ```
 
+> **Platform note:** published `vs-agent` images are amd64-only. On arm64 hosts, build the image locally from [verana-labs/vs-agent](https://github.com/verana-labs/vs-agent) and run the setup scripts with `DOCKER_PLATFORM=linux/arm64 VS_AGENT_IMAGE=<your-local-tag>`.
+
 > **Note:** Only one ngrok tunnel can run at a time on the free plan. For local development with multiple services, deploy organization to K8s first, then point child services to its public URL via `ORG_VS_PUBLIC_URL` and `ORG_VS_ADMIN_URL`.
 
 ## Shared Code
