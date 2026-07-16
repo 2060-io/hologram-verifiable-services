@@ -286,6 +286,13 @@ speechToText:
     type: openai-whisper
     model: gpt-4o-transcribe
 
+vision:
+  requireAuth: true
+  provider:
+    name: openai-vision
+    type: openai-vision
+    model: gpt-4o-mini # image-to-text for user-sent images (cheap, vision-capable)
+
 imageGeneration:
   providers:
     - name: gpt-image
