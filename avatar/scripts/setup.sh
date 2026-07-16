@@ -74,18 +74,33 @@ CUSTOM_SCHEMA_BASE_ID="${CUSTOM_SCHEMA_BASE_ID:-example}"
 
 if ! command -v veranad &> /dev/null; then
   log "veranad not found — downloading..."
-  VERANAD_VERSION="${VERANAD_VERSION:-v0.9.4}"
+  VERANAD_VERSION="${VERANAD_VERSION:-v0.9.5}"
   PLATFORM="$(uname -s | tr '[:upper:]' '[:lower:]')"
   ARCH="$(uname -m)"
   case "$ARCH" in
     x86_64)  ARCH="amd64" ;;
     aarch64|arm64) ARCH="arm64" ;;
   esac
-  mkdir -p "${HOME}/.local/bin"
-  curl -sfL "https://github.com/verana-labs/verana/releases/download/${VERANAD_VERSION}/veranad-${PLATFORM}-${ARCH}" \
-    -o "${HOME}/.local/bin/veranad"
-  chmod +x "${HOME}/.local/bin/veranad"
-  export PATH="${HOME}/.local/bin:$PATH"
+  VERANAD_URL="https://github.com/verana-labs/verana-node/releases/download/${VERANAD_VERSION}/veranad-${PLATFORM}-${ARCH}"
+  VERANAD_TMP="$(mktemp)"
+  curl -sfL "$VERANAD_URL" -o "$VERANAD_TMP"
+  # A disabled/renamed repo serves an HTML page with HTTP 200 — reject anything
+  # that is not a real binary before installing it.
+  if head -c 512 "$VERANAD_TMP" | grep -qi "<html\|not found"; then
+    err "Download from ${VERANAD_URL} is not a binary — check VERANAD_VERSION and release assets"
+    rm -f "$VERANAD_TMP"
+    exit 1
+  fi
+  chmod +x "$VERANAD_TMP"
+  if ! mv "$VERANAD_TMP" /usr/local/bin/veranad 2>/dev/null; then
+    mkdir -p "${HOME}/.local/bin"
+    mv "$VERANAD_TMP" "${HOME}/.local/bin/veranad"
+    export PATH="${HOME}/.local/bin:$PATH"
+  fi
+  if ! veranad version >/dev/null 2>&1; then
+    err "Installed veranad does not run — check VERANAD_VERSION (${VERANAD_VERSION}) and platform (${PLATFORM}-${ARCH})"
+    exit 1
+  fi
   ok "veranad installed: $(veranad version)"
 fi
 
