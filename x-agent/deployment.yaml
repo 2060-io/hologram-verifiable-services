@@ -102,7 +102,7 @@ chatbot:
     - name: AGENT_MEMORY_BACKEND
       value: 'redis'
     - name: AGENT_MEMORY_WINDOW
-      value: '20'
+      value: '200'
     - name: REDIS_URL
       value: 'redis://x-agent-chart-redis.{{ .Release.Namespace }}:6379'
     - name: VS_AGENT_ADMIN_URL
