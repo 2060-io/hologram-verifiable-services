@@ -194,40 +194,42 @@ setup_veranad_account "$USER_ACC" "$FAUCET_URL"
 
 log "Step 3: Obtain Service credential from organization"
 
-# Verify organization admin API is reachable
+# Optional for local development: if the organization VS is not reachable the
+# step is skipped — the agent runs without a Service credential (no verifiable
+# trust linkage), which is fine for local testing.
 if ! curl -sf "${ORG_VS_ADMIN_URL}/api" > /dev/null 2>&1; then
-  err "Organization admin API not reachable at ${ORG_VS_ADMIN_URL}"
-  err "Make sure organization is running and ORG_VS_ADMIN_URL is set correctly."
-  exit 1
-fi
-ok "Organization admin API reachable: $ORG_VS_ADMIN_URL"
-
-# Skip if Service credential is already linked on the local agent
-if has_linked_vp "$NGROK_URL" "service"; then
-  ok "Service credential already linked — skipping"
+  warn "Organization admin API not reachable at ${ORG_VS_ADMIN_URL} — skipping Service credential."
+  warn "To obtain one, start the organization VS and re-run this script with ORG_VS_ADMIN_URL set."
 else
-  # Discover Service VTJSC from ECS TR
-  SERVICE_VTJSC_OUTPUT=$(discover_ecs_vtjsc "$ECS_TR_PUBLIC_URL" "service")
-  SERVICE_JSC_URL=$(echo "$SERVICE_VTJSC_OUTPUT" | sed -n '1p')
-  CS_SERVICE_ID=$(echo "$SERVICE_VTJSC_OUTPUT" | sed -n '2p')
+  ok "Organization admin API reachable: $ORG_VS_ADMIN_URL"
 
-  # Download logo
-  SERVICE_LOGO_DATA_URI=$(download_logo_data_uri "$SERVICE_LOGO_URL")
+  # Skip if Service credential is already linked on the local agent
+  if has_linked_vp "$NGROK_URL" "service"; then
+    ok "Service credential already linked — skipping"
+  else
+    # Discover Service VTJSC from ECS TR
+    SERVICE_VTJSC_OUTPUT=$(discover_ecs_vtjsc "$ECS_TR_PUBLIC_URL" "service")
+    SERVICE_JSC_URL=$(echo "$SERVICE_VTJSC_OUTPUT" | sed -n '1p')
+    CS_SERVICE_ID=$(echo "$SERVICE_VTJSC_OUTPUT" | sed -n '2p')
 
-  # Build Service credential claims
-  SERVICE_CLAIMS=$(jq -n \
-    --arg id "$AGENT_DID" \
-    --arg name "$SERVICE_NAME" \
-    --arg type "$SERVICE_TYPE" \
-    --arg desc "$SERVICE_DESCRIPTION" \
-    --arg logo "$SERVICE_LOGO_DATA_URI" \
-    --argjson age "$SERVICE_MIN_AGE" \
-    --arg terms "$SERVICE_TERMS" \
-    --arg privacy "$SERVICE_PRIVACY" \
-    '{id: $id, name: $name, type: $type, description: $desc, logo: $logo, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
+    # Download logo
+    SERVICE_LOGO_DATA_URI=$(download_logo_data_uri "$SERVICE_LOGO_URL")
 
-  # Issue Service credential from organization, link on local agent
-  issue_remote_and_link "$ORG_VS_ADMIN_URL" "$ADMIN_API" "service" "$SERVICE_JSC_URL" "$AGENT_DID" "$SERVICE_CLAIMS"
+    # Build Service credential claims
+    SERVICE_CLAIMS=$(jq -n \
+      --arg id "$AGENT_DID" \
+      --arg name "$SERVICE_NAME" \
+      --arg type "$SERVICE_TYPE" \
+      --arg desc "$SERVICE_DESCRIPTION" \
+      --arg logo "$SERVICE_LOGO_DATA_URI" \
+      --argjson age "$SERVICE_MIN_AGE" \
+      --arg terms "$SERVICE_TERMS" \
+      --arg privacy "$SERVICE_PRIVACY" \
+      '{id: $id, name: $name, type: $type, description: $desc, logo: $logo, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
+
+    # Issue Service credential from organization, link on local agent
+    issue_remote_and_link "$ORG_VS_ADMIN_URL" "$ADMIN_API" "service" "$SERVICE_JSC_URL" "$AGENT_DID" "$SERVICE_CLAIMS"
+  fi
 fi
 
 # =============================================================================
