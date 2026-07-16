@@ -43,6 +43,9 @@ VS_AGENT_CONTAINER_NAME="${VS_AGENT_CONTAINER_NAME:-x-agent}"
 VS_AGENT_ADMIN_PORT="${VS_AGENT_ADMIN_PORT:-3030}"
 VS_AGENT_PUBLIC_PORT="${VS_AGENT_PUBLIC_PORT:-3031}"
 VS_AGENT_DATA_DIR="${VS_AGENT_DATA_DIR:-${SERVICE_DIR}/data}"
+# Published vs-agent images are amd64-only; set DOCKER_PLATFORM=linux/arm64
+# when using a locally built arm64 image (e.g. veranalabs/vs-agent:v1.11.1-arm64)
+DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 SERVICE_NAME="${SERVICE_NAME:-X Agent}"
 USER_ACC="${USER_ACC:-org-vs-admin}"
 OUTPUT_FILE="${OUTPUT_FILE:-${SERVICE_DIR}/ids.env}"
@@ -65,18 +68,33 @@ SERVICE_PRIVACY="${SERVICE_PRIVACY:-https://hologram.zone/page/privacy-policy/}"
 
 if ! command -v veranad &> /dev/null; then
   log "veranad not found — downloading..."
-  VERANAD_VERSION="${VERANAD_VERSION:-v0.9.4}"
+  VERANAD_VERSION="${VERANAD_VERSION:-v0.9.5}"
   PLATFORM="$(uname -s | tr '[:upper:]' '[:lower:]')"
   ARCH="$(uname -m)"
   case "$ARCH" in
     x86_64)  ARCH="amd64" ;;
     aarch64|arm64) ARCH="arm64" ;;
   esac
-  mkdir -p "${HOME}/.local/bin"
-  curl -sfL "https://github.com/verana-labs/verana/releases/download/${VERANAD_VERSION}/veranad-${PLATFORM}-${ARCH}" \
-    -o "${HOME}/.local/bin/veranad"
-  chmod +x "${HOME}/.local/bin/veranad"
-  export PATH="${HOME}/.local/bin:$PATH"
+  VERANAD_URL="https://github.com/verana-labs/verana-node/releases/download/${VERANAD_VERSION}/veranad-${PLATFORM}-${ARCH}"
+  VERANAD_TMP="$(mktemp)"
+  curl -sfL "$VERANAD_URL" -o "$VERANAD_TMP"
+  # A disabled/renamed repo serves an HTML page with HTTP 200 — reject anything
+  # that is not a real binary before installing it.
+  if head -c 512 "$VERANAD_TMP" | grep -qi "<html\|not found"; then
+    err "Download from ${VERANAD_URL} is not a binary — check VERANAD_VERSION and release assets"
+    rm -f "$VERANAD_TMP"
+    exit 1
+  fi
+  chmod +x "$VERANAD_TMP"
+  if ! mv "$VERANAD_TMP" /usr/local/bin/veranad 2>/dev/null; then
+    mkdir -p "${HOME}/.local/bin"
+    mv "$VERANAD_TMP" "${HOME}/.local/bin/veranad"
+    export PATH="${HOME}/.local/bin:$PATH"
+  fi
+  if ! veranad version >/dev/null 2>&1; then
+    err "Installed veranad does not run — check VERANAD_VERSION (${VERANAD_VERSION}) and platform (${PLATFORM}-${ARCH})"
+    exit 1
+  fi
   ok "veranad installed: $(veranad version)"
 fi
 
@@ -101,7 +119,7 @@ rm -rf "${VS_AGENT_DATA_DIR}/data/wallet"
 
 # Pull image
 log "Pulling VS Agent image..."
-if ! docker pull --platform linux/amd64 "$VS_AGENT_IMAGE" 2>&1 | tail -1; then
+if ! docker pull --platform "$DOCKER_PLATFORM" "$VS_AGENT_IMAGE" 2>&1 | tail -1; then
   if docker image inspect "$VS_AGENT_IMAGE" > /dev/null 2>&1; then
     warn "Pull failed — using locally cached image: $VS_AGENT_IMAGE"
   else
@@ -129,9 +147,10 @@ ok "ngrok tunnel: $NGROK_URL (domain: $NGROK_DOMAIN)"
 # Start VS Agent container
 log "Starting VS Agent container..."
 mkdir -p "$VS_AGENT_DATA_DIR"
-docker run --platform linux/amd64 -d \
+docker run --platform "$DOCKER_PLATFORM" -d \
   -p "${VS_AGENT_PUBLIC_PORT}:3001" \
   -p "${VS_AGENT_ADMIN_PORT}:3000" \
+  --add-host=host.docker.internal:host-gateway \
   -v "${VS_AGENT_DATA_DIR}:/root/.afj" \
   -e "AGENT_PUBLIC_DID=did:webvh:${NGROK_DOMAIN}" \
   -e "AGENT_LABEL=${SERVICE_NAME}" \
