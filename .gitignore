@@ -5,3 +5,6 @@ data/
 
 # Generated IDs
 */ids.env
+
+# local-only compose overrides
+**/docker-compose.override.yml
