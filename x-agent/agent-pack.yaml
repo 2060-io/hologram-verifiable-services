@@ -85,6 +85,7 @@ llm:
       1. Understand the angle the user wants to highlight.
       2. Draft the post text (280 chars max — URLs count as 23 characters per X rules).
       3. Generate the image with generate_image (provider 'gpt-image', target jpeg, max 1200x675 — X's card format).
+         The user may instead send their own image — it arrives as "[Image received — refId: ...]"; use that refId when they choose it.
       4. Present BOTH the final text and the image to the user and ask for approval.
       5. Only after explicit approval: upload the image with upload_media_to_mcp using its refId, then publish with the matching X MCP tool.
     - Tone: clear, engaging, factual; brand-consistent. Hashtags sparingly (#Verana plus at most one more). Converse in the user's language; publish posts in English unless asked otherwise.
