@@ -55,6 +55,11 @@ export X_BEARER_TOKEN=your-bearer-token
 docker compose -f x-agent/docker/docker-compose.yml up
 ```
 
+> **Notes:**
+> - `setup.sh` Step 3 (Service credential from the organization) is optional locally: when the organization admin API is not reachable it is skipped with a warning.
+> - Published `vs-agent` images are amd64-only. On arm64 hosts, build the image locally from [verana-labs/vs-agent](https://github.com/verana-labs/vs-agent) and run `DOCKER_PLATFORM=linux/arm64 VS_AGENT_IMAGE=<local-tag> ./x-agent/scripts/setup.sh`.
+> - The compose stack starts its own `vs-agent` on the same host ports as the standalone one from `setup.sh` — stop the standalone container first (`docker stop x-agent`), or start only the dependencies (`postgres redis minio x-mcp` and `chatbot` with `--no-deps`) to keep using it.
+
 ## GitHub Actions Secrets
 
 The deployment workflow (`7_deploy-x-agent.yml`) requires these repository secrets:
@@ -70,6 +75,8 @@ The deployment workflow (`7_deploy-x-agent.yml`) requires these repository secre
 | `X_AGENT_POSTGRES_PASSWORD` | PostgreSQL password |
 | `X_AGENT_VSAGENT_DB_PASSWORD` | VS Agent database password |
 | `X_AGENT_WALLET_KEY` | VS Agent wallet encryption key |
-| `OVH_KUBECONFIG` | Kubernetes config (shared) |
+| `X_AGENT_MINIO_ACCESS_KEY` | MinIO access key (generated-media store) |
+| `X_AGENT_MINIO_SECRET_KEY` | MinIO secret key (generated-media store) |
+| `KUBECONFIG_2060_PROD` | Kubernetes config (shared) |
 | `K8S_NAMESPACE` | Target namespace (shared) |
 | `VS_DEMO_MNEMONIC` | Verana account mnemonic (shared) |
