@@ -276,7 +276,7 @@ speechToText:
   provider:
     name: openai-audio
     type: openai-whisper
-    model: gpt-audio-1.5
+    model: gpt-4o-transcribe
 
 imageGeneration:
   providers:
