@@ -282,7 +282,8 @@ imageGeneration:
   providers:
     - name: gpt-image
       type: openai-gpt-image
-      model: gpt-image-2
+      model: gpt-image-1-mini
+      quality: medium # demo service: prioritize latency/cost over max quality
       # Uses OPENAI_API_KEY by default; set apiKeyEnv to override
       defaultSize: 1024x1024
 
