@@ -85,6 +85,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
       - POSTGRES_DB_NAME=${POSTGRES_DB:-github-agent}
       - CREDENTIAL_DEFINITION_ID=${CREDENTIAL_DEFINITION_ID}
+      - ISSUER_SERVICE_DID=${ISSUER_SERVICE_DID:-did:webvh:QmNY4etokEQci6nm7e93UJZU5WELC1vYdCyQBtDjMsFHWo:avatar.vs.hologram.zone}
       - GITHUB_MCP_URL=${GITHUB_MCP_URL:-https://api.githubcopilot.com/mcp/}
       - MCP_CONFIG_ENCRYPTION_KEY=${MCP_CONFIG_ENCRYPTION_KEY:-}
       - AGENT_PACK_PATH=/app/agent-packs/github-agent

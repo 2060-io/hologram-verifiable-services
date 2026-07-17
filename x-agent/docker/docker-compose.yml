@@ -123,6 +123,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
       - POSTGRES_DB_NAME=${POSTGRES_DB:-x-agent}
       - CREDENTIAL_DEFINITION_ID=${CREDENTIAL_DEFINITION_ID}
+      - ISSUER_SERVICE_DID=${ISSUER_SERVICE_DID:-did:webvh:QmNY4etokEQci6nm7e93UJZU5WELC1vYdCyQBtDjMsFHWo:avatar.vs.hologram.zone}
       - X_MCP_URL=http://x-mcp:8000/mcp
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
