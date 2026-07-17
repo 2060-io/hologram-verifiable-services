@@ -107,6 +107,8 @@ chatbot:
       value: 'github-agent-chart-postgres.{{ .Release.Namespace }}'
     - name: CREDENTIAL_DEFINITION_ID
       value: '{{ .Values.credentialDefinitionId | default "" }}'
+    - name: ISSUER_SERVICE_DID
+      value: 'did:webvh:QmNY4etokEQci6nm7e93UJZU5WELC1vYdCyQBtDjMsFHWo:avatar.vs.hologram.zone'
     - name: GITHUB_MCP_URL
       value: 'https://api.githubcopilot.com/mcp/'
   agentPack:
