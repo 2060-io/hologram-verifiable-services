@@ -1,0 +1,77 @@
+name: Continuous Delivery
+
+# Versions the repository with Release Please (stable releases) and semantic-release
+# (dev prereleases on main), then builds and publishes the container images of the demos
+# whose code lives here. This repository publishes images only; the demos are deployed
+# from 2060-io/hologram-demos-deploy, which pins the published tags.
+#
+# Images:
+#   io2060/avatar-issuer-chatbot  (avatar/issuer-chatbot)
+#
+# Tags: stable releases get vX.Y.Z, vX.Y and vX; dev prereleases get vX.Y.Z-dev.N plus
+# vX.Y.Z-dev, vX.Y-dev, vX-dev and dev.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  versioning:
+    name: Resolve version
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: 2060-io/organization/.github/workflows/resolve-version-call.yml@92e4863951451e6e1eed78d73fce791e5d0458d1 # main
+    secrets: inherit
+
+  avatar-issuer-chatbot:
+    name: Build and push avatar-issuer-chatbot
+    needs: versioning
+    if: needs.versioning.outputs.new-release-published == 'true'
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: io2060/avatar-issuer-chatbot
+      RELEASE_VERSION: ${{ needs.versioning.outputs.release-version }}
+      RELEASE_TYPE: ${{ needs.versioning.outputs.release-type }}
+      RELEASE_MAJOR: ${{ needs.versioning.outputs.release-major }}
+      RELEASE_MINOR: ${{ needs.versioning.outputs.release-minor }}
+      RELEASE_PATCH: ${{ needs.versioning.outputs.release-patch }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Resolve image tags
+        run: |
+          VERSION="${RELEASE_VERSION#v}"
+          if [ "$RELEASE_TYPE" = "stable" ]; then SUFFIX=""; else SUFFIX="-dev"; fi
+          {
+            echo "TAGS<<EOF"
+            echo "$IMAGE:v$VERSION"
+            echo "$IMAGE:v${RELEASE_MAJOR}${SUFFIX}"
+            echo "$IMAGE:v${RELEASE_MAJOR}.${RELEASE_MINOR}${SUFFIX}"
+            echo "$IMAGE:v${RELEASE_MAJOR}.${RELEASE_MINOR}.${RELEASE_PATCH}${SUFFIX}"
+            if [ "$RELEASE_TYPE" != "stable" ]; then echo "$IMAGE:dev"; fi
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Log in to Docker Hub
+        env:
+          DH_USERNAME: ${{ secrets.DOCKER_HUB_LOGIN }}
+          DH_TOKEN: ${{ secrets.DOCKER_HUB_PWD }}
+        run: echo "$DH_TOKEN" | docker login -u "$DH_USERNAME" --password-stdin
+
+      - name: Build and push
+        run: |
+          set -euo pipefail
+          FIRST=$(echo "$TAGS" | head -1)
+          docker build -t "$FIRST" ./avatar/issuer-chatbot
+          for tag in $TAGS; do
+            [ "$tag" = "$FIRST" ] || docker tag "$FIRST" "$tag"
+            docker push "$tag"
+          done
+          echo "### Published" >> "$GITHUB_STEP_SUMMARY"
+          for tag in $TAGS; do echo "- \`$tag\`" >> "$GITHUB_STEP_SUMMARY"; done
