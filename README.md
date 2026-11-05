@@ -76,6 +76,16 @@ Workflows are numbered to indicate deployment order. **Run them in order** when 
 
 In addition, `ci.yml` builds and tests the avatar issuer-chatbot on every pull request.
 
+### Releases and images
+
+`cd.yml` versions the repository with Release Please on every push to `main`: merging the release pull request publishes a stable release (`vX.Y.Z`), and every other releasable commit (`feat`, `fix`, ...) publishes a dev prerelease (`vX.Y.Z-dev.N`). Each release builds and pushes the images of the code that lives here:
+
+| Image | Source |
+|---|---|
+| `io2060/avatar-issuer-chatbot` | `avatar/issuer-chatbot` |
+
+Stable releases are tagged `vX.Y.Z`, `vX.Y` and `vX`; dev prereleases `vX.Y.Z-dev.N`, `vX.Y.Z-dev`, `vX.Y-dev`, `vX-dev` and `dev`. Deployments pin the full version tag.
+
 ### Deployment
 
 1. Run workflows **in order** from GitHub Actions (manual dispatch on `main` branch)
