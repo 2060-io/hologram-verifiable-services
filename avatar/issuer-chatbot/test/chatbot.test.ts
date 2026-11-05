@@ -7,7 +7,7 @@ import { Chatbot } from "../src/chatbot";
 import { Db } from "../src/db";
 import { SessionStore } from "../src/session-store";
 import { VsAgentClient, ContextualMenu } from "../src/vs-agent-client";
-import { SchemaInfo } from "../src/schema-reader";
+import { CredentialInfo } from "../src/credential-definition";
 import { Config } from "../src/config";
 import { MediaStore } from "../src/media-store";
 
@@ -47,7 +47,9 @@ class FakeClient {
     this.menus.push(contextualMenu);
   }
 
-  async sendReceipts(): Promise<void> {}
+  async sendMenuUpdate(_connectionId: string, menu: ContextualMenu): Promise<void> {
+    this.menus.push(menu);
+  }
 
   async sendMediaImage(): Promise<void> {}
 
@@ -65,11 +67,9 @@ class FakeClient {
   }
 }
 
-const schema: SchemaInfo = {
-  vtjscId: "vtjsc-1",
-  schemaId: "schema-1",
-  title: "Avatar",
-  attributes: [{ name: "name" }, { name: "avatar" }] as SchemaInfo["attributes"],
+const schema: CredentialInfo = {
+  jsonSchemaCredentialId: "https://ecosystem.example/vt/schemas-avatar-jsc.json",
+  attributes: ["name", "avatar"],
   nameMinLength: 3,
   nameMaxLength: 32,
   credentialDefinitionId: "cred-def-1",
@@ -204,4 +204,12 @@ test("delete via the menu entry prompts for a name and deletes the avatar", asyn
   const ids = client.lastMenuIds();
   assert.ok(!ids.includes("reissue"));
   assert.ok(!ids.includes("delete_avatar"));
+});
+
+test("a menu request is answered with the contextual menu", async () => {
+  const id = `conn-${conn}`;
+  await chatbot.onMenuRequest(id);
+
+  assert.equal(client.messages.length, 0);
+  assert.ok(client.lastMenuIds().includes("new_avatar"));
 });

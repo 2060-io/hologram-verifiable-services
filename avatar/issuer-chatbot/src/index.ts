@@ -1,7 +1,8 @@
 import express from "express";
+import { ApiClient } from "@verana-labs/vs-agent-client";
 import { loadConfig } from "./config";
 import { VsAgentClient } from "./vs-agent-client";
-import { discoverSchema } from "./schema-reader";
+import { ensureCredentialDefinition } from "./credential-definition";
 import { SessionStore } from "./session-store";
 import { Db } from "./db";
 import { Chatbot } from "./chatbot";
@@ -12,28 +13,26 @@ async function main(): Promise<void> {
   const config = loadConfig();
   console.log(`Issuer Chatbot starting...`);
   console.log(`  VS-Agent URL : ${config.vsAgentAdminUrl}`);
+  console.log(`  VTJSC        : ${config.jsonSchemaCredentialId}`);
   console.log(`  Chatbot port : ${config.chatbotPort}`);
   console.log(`  Service name : ${config.serviceName}`);
   console.log(`  AnonCreds    : ${config.enableAnoncreds}`);
   console.log(`  Database     : ${config.databaseUrl}`);
 
-  // Wait for VS-Agent to be ready
-  const client = new VsAgentClient(config);
-  const agent = await client.waitForReady();
-  console.log(`VS-Agent ready — DID: ${agent.publicDid}`);
+  if (!config.jsonSchemaCredentialId) {
+    throw new Error(
+      "JSON_SCHEMA_CREDENTIAL_ID is required: URL of the Avatar Credential VTJSC"
+    );
+  }
 
-  // Discover schema from organization (schema owner)
-  const customSchemaBaseId = process.env.CUSTOM_SCHEMA_BASE_ID || "example";
-  const orgPublicUrl = config.orgVsPublicUrl || undefined;
-  const orgClient = orgPublicUrl
-    ? undefined
-    : new VsAgentClient({ ...config, vsAgentAdminUrl: config.orgVsAdminUrl });
-  const schema = await discoverSchema(
-    client,
-    customSchemaBaseId,
-    orgPublicUrl,
-    orgClient
-  );
+  // Wait for VS-Agent to be ready (Admin API v2)
+  const api = new ApiClient(config.vsAgentAdminUrl);
+  const client = new VsAgentClient(api);
+  const agent = await client.waitForReady();
+  console.log(`VS-Agent ready — DID: ${agent.did ?? "(none)"}, version ${agent.version}`);
+
+  // Find or create the AnonCreds credential definition for the Avatar Credential VTJSC
+  const schema = await ensureCredentialDefinition(api, config.jsonSchemaCredentialId);
 
   // Initialize database and session store
   const db = await Db.create(config.databaseUrl);
@@ -61,17 +60,15 @@ async function main(): Promise<void> {
 
   // Start Express server with webhook routes
   const app = express();
-  app.use(express.json());
-  app.use("/", createWebhookRouter(chatbot));
+  // Credential exchange events carry the offered claims, the avatar data URI included
+  app.use(express.json({ limit: "5mb" }));
+  app.use("/", createWebhookRouter(chatbot, client));
 
   app.listen(config.chatbotPort, () => {
     console.log(`Issuer Chatbot listening on port ${config.chatbotPort}`);
-    console.log(`Webhook endpoints:`);
+    console.log(`Endpoints:`);
     console.log(
-      `  POST http://localhost:${config.chatbotPort}/connection-state-updated`
-    );
-    console.log(
-      `  POST http://localhost:${config.chatbotPort}/message-received`
+      `  POST http://localhost:${config.chatbotPort}/events  (VS Agent EVENTS_WEBHOOK_URL)`
     );
     console.log(
       `  GET  http://localhost:${config.chatbotPort}/health`
