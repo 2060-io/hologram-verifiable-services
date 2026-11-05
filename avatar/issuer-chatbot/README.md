@@ -12,9 +12,23 @@ See [`../spec.md`](../spec.md) for the full behavioral spec.
 4. The contextual menu adapts to state: `Reissue Credential` and `Delete Avatar` appear once the connection owns at least one avatar; `Password Setup` / `Authenticator Setup` appear when authenticated
 5. `/restore` moves all avatars of an account to a new connectionId after a password or OTP challenge
 
+## VS Agent integration
+
+The chatbot drives its VS Agent through the Administration API v2 with the official client
+[`@verana-labs/vs-agent-client`](https://www.npmjs.com/package/@verana-labs/vs-agent-client)
+(pinned to `2.0.0-dev.105`, the VS Agent release it targets):
+
+- Text messages: Basic Messages. Contextual menu: Action Menu (`sendMenu`, `perform` events). Choice prompts: Question Answer (`sendQuestion`; the answer text maps back to the option of its question).
+- Images: Media Sharing (`shareMedia`, `share-media-received` events).
+- Issuance: at startup the chatbot looks up the AnonCreds credential definition governed by `JSON_SCHEMA_CREDENTIAL_ID` (`listCredentialDefinitions`) and creates it when none exists (`createCredentialDefinition`). Each credential is a `createCredentialOffer` on the chat connection, with `autoAccept`. The VS Agent must hold an active ISSUER participant for the credential schema of that VTJSC.
+
+The VS Agent delivers every event to one webhook URL. Set the VS Agent variable
+`EVENTS_WEBHOOK_URL` (Helm chart value `eventsWebhookUrl`) to the `/events` route of this
+server, for example `http://avatar-issuer-chatbot:4000/events`. VS Agent v2 no longer reads `EVENTS_BASE_URL`.
+
 ## Prerequisites
 
-- Avatar VS Agent running and configured (see `avatar/scripts/setup.sh`)
+- Avatar VS Agent v2 running, with an ISSUER participant for the Avatar Credential schema and `EVENTS_WEBHOOK_URL` pointing at this server
 - MinIO for image previews (started by `avatar/docker/docker-compose.yml`)
 - Node.js 22+
 
@@ -42,10 +56,9 @@ npm test
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VS_AGENT_ADMIN_URL` | `http://localhost:3000` | Avatar VS Agent admin API URL |
-| `ORG_VS_ADMIN_URL` | value of `VS_AGENT_ADMIN_URL` | Organization VS Agent admin API (schema discovery fallback) |
-| `ORG_VS_PUBLIC_URL` | — | Organization public URL (schema discovery via DID document) |
-| `CHATBOT_PORT` | `4000` | Webhook server port |
+| `VS_AGENT_ADMIN_URL` | `http://localhost:3000` | Avatar VS Agent admin API base URL (the client adds `/v2`) |
+| `JSON_SCHEMA_CREDENTIAL_ID` | — (required) | URL of the VTJSC of the Avatar Credential schema, as the ecosystem publishes it, e.g. `https://ecosystem.example/vt/schemas-avatar-jsc.json` |
+| `CHATBOT_PORT` | `4000` | Server port (`POST /events`, `GET /health`) |
 | `DATABASE_URL` | `sqlite:./data/sessions.db` | Accounts + avatars persistence (`sqlite:<path>` or `postgresql://…`) |
 | `SERVICE_NAME` | `Example Verana Service` | Service display name |
 | `ENABLE_ANONCREDS` | `true` | Use AnonCreds credential format |
@@ -64,5 +77,6 @@ npm test
 docker build -t avatar-issuer-chatbot .
 docker run -p 4000:4000 \
   -e VS_AGENT_ADMIN_URL=http://host.docker.internal:3000 \
+  -e JSON_SCHEMA_CREDENTIAL_ID=https://ecosystem.example/vt/schemas-avatar-jsc.json \
   avatar-issuer-chatbot
 ```

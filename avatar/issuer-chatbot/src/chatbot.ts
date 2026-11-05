@@ -2,7 +2,7 @@ import * as OTPAuth from "otpauth";
 import { randomUUID } from "crypto";
 import { Config } from "./config";
 import { VsAgentClient, ContextualMenu, ContextualMenuEntry } from "./vs-agent-client";
-import { SchemaInfo } from "./schema-reader";
+import { CredentialInfo } from "./credential-definition";
 import { SessionStore, FlowType, FlowStep } from "./session-store";
 import { Db } from "./db";
 import { MediaStore, CipheringInfo } from "./media-store";
@@ -12,7 +12,7 @@ export class Chatbot {
   private client: VsAgentClient;
   private store: SessionStore;
   private db: Db;
-  private schema: SchemaInfo;
+  private schema: CredentialInfo;
   private config: Config;
   private mediaStore: MediaStore;
 
@@ -20,7 +20,7 @@ export class Chatbot {
     client: VsAgentClient,
     store: SessionStore,
     db: Db,
-    schema: SchemaInfo,
+    schema: CredentialInfo,
     config: Config,
     mediaStore: MediaStore
   ) {
@@ -36,10 +36,6 @@ export class Chatbot {
   // Public webhook entry points
   // -----------------------------------------------------------------------
 
-  async sendReceipts(connectionId: string, messageId: string): Promise<void> {
-    await this.client.sendReceipts(connectionId, messageId);
-  }
-
   async onNewConnection(connectionId: string): Promise<void> {
     console.log(`New connection: ${connectionId}`);
     await this.db.ensureAccount(connectionId);
@@ -52,6 +48,10 @@ export class Chatbot {
     }
 
     await this.send(connectionId, `Welcome back to Avatar Issuer!\nType a command or use the menu.`);
+  }
+
+  async onMenuRequest(connectionId: string): Promise<void> {
+    await this.client.sendMenuUpdate(connectionId, await this.buildMenu(connectionId));
   }
 
   async onMenuSelect(connectionId: string, menuId: string): Promise<void> {
@@ -569,10 +569,10 @@ export class Chatbot {
     avatarValue: string = ""
   ): Promise<void> {
     try {
-      const claimsArray = this.schema.attributes.map((attr) => {
-        if (attr.name === "name") return { name: attr.name, value: avatarName };
-        if (attr.name === "avatar") return { name: attr.name, value: avatarValue };
-        return { name: attr.name, value: "" };
+      const claimsArray = this.schema.attributes.map((name) => {
+        if (name === "name") return { name, value: avatarName };
+        if (name === "avatar") return { name, value: avatarValue };
+        return { name, value: "" };
       });
       console.log(`Issuing credential to ${connectionId} for avatar "${avatarName}"`);
 
